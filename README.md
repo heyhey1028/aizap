@@ -65,6 +65,9 @@ source .venv/bin/activate
 # 依存関係をインストール
 pip install google-adk
 
+# GCP認証 (ローカル実行用)
+gcloud auth application-default login
+
 # 環境変数を設定
 export GOOGLE_GENAI_USE_VERTEXAI=1
 export GOOGLE_CLOUD_PROJECT=xxxxxx
