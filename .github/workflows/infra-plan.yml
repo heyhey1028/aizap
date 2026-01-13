@@ -85,14 +85,9 @@ jobs:
             --region=${{ env.REGION }} \
             --project=${{ env.PROJECT_ID }} \
             --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          ADK_IMAGE=$(gcloud run services describe aizap-adk \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
           echo "IMAGE_BFF=${BFF_IMAGE}" >> $GITHUB_OUTPUT
           echo "IMAGE_WORKER=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
-          echo "IMAGE_ADK=${ADK_IMAGE}" >> $GITHUB_OUTPUT
-          echo "Current images: BFF=${BFF_IMAGE}, Worker=${WORKER_IMAGE}, ADK=${ADK_IMAGE}"
+          echo "Current images: BFF=${BFF_IMAGE}, Worker=${WORKER_IMAGE}"
 
       - name: Terraform Plan
         working-directory: infra/${{ env.TF_ENV }}
@@ -102,5 +97,4 @@ jobs:
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
             -var=image_bff=${{ steps.current-images.outputs.IMAGE_BFF }} \
-            -var=image_worker=${{ steps.current-images.outputs.IMAGE_WORKER }} \
-            -var=image_adk=${{ steps.current-images.outputs.IMAGE_ADK }}
+            -var=image_worker=${{ steps.current-images.outputs.IMAGE_WORKER }}
