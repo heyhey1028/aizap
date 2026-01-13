@@ -1,0 +1,283 @@
+name: App Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - ".github/workflows/app-deploy.yml"
+    tags:
+      - "app-v*"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+      services:
+        description: "Services to deploy (comma-separated, leave blank for all)"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      bff: ${{ steps.changes.outputs.bff }}
+      worker: ${{ steps.changes.outputs.worker }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            bff:
+              - 'app/bff/**'
+            worker:
+              - 'app/worker/**'
+
+  build:
+    name: Build and Push Docker Images
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    timeout-minutes: 30
+
+    environment: ${{ (startsWith(github.ref, 'refs/tags/app-v') || github.event.inputs.environment == 'prod') && 'production' || 'development' }}
+
+    outputs:
+      image_bff: ${{ steps.build-bff.outputs.IMAGE_URI }}
+      image_worker: ${{ steps.build-worker.outputs.IMAGE_URI }}
+      environment: ${{ steps.env.outputs.ENVIRONMENT }}
+      deploy_bff: ${{ steps.services.outputs.DEPLOY_BFF }}
+      deploy_worker: ${{ steps.services.outputs.DEPLOY_WORKER }}
+
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      REGION: asia-northeast1
+      WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+      SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine deployment environment
+        id: env
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/app-v* ]] || [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Decide services to deploy
+        id: services
+        run: |
+          MANUAL_SERVICES="${{ github.event.inputs.services }}"
+
+          if [ -n "$MANUAL_SERVICES" ]; then
+            # workflow_dispatch で指定されたサービス
+            DEPLOY_BFF=$([[ "$MANUAL_SERVICES" == *"bff"* ]] && echo 'true' || echo 'false')
+            DEPLOY_WORKER=$([[ "$MANUAL_SERVICES" == *"worker"* ]] && echo 'true' || echo 'false')
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "$MANUAL_SERVICES" ]; then
+            # workflow_dispatch で空欄 → 全サービス
+            DEPLOY_BFF=true
+            DEPLOY_WORKER=true
+          elif [[ "$GITHUB_REF" == refs/tags/app-v* ]]; then
+            # タグ → 全サービス
+            DEPLOY_BFF=true
+            DEPLOY_WORKER=true
+          else
+            # push → パス検知
+            DEPLOY_BFF=${{ needs.detect-changes.outputs.bff }}
+            DEPLOY_WORKER=${{ needs.detect-changes.outputs.worker }}
+          fi
+
+          echo "DEPLOY_BFF=${DEPLOY_BFF}" >> $GITHUB_OUTPUT
+          echo "DEPLOY_WORKER=${DEPLOY_WORKER}" >> $GITHUB_OUTPUT
+          echo "Deploy targets: BFF=${DEPLOY_BFF}, Worker=${DEPLOY_WORKER}"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure gcloud
+        run: |
+          gcloud config set project ${{ env.PROJECT_ID }}
+          gcloud config set run/region ${{ env.REGION }}
+
+      - name: Get current images (for unchanged services)
+        id: current-images
+        run: |
+          BFF_IMAGE=$(gcloud run services describe aizap-bff \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
+          WORKER_IMAGE=$(gcloud run services describe aizap-worker \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
+          echo "CURRENT_BFF=${BFF_IMAGE}" >> $GITHUB_OUTPUT
+          echo "CURRENT_WORKER=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push BFF
+        id: build-bff
+        run: |
+          if [[ "${{ steps.services.outputs.DEPLOY_BFF }}" == "true" ]]; then
+            IMAGE_TAG="${{ github.sha }}"
+            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap/bff:${IMAGE_TAG}"
+
+            BUILD_ID=$(gcloud builds submit ./app/bff \
+              --tag="${IMAGE_URI}" \
+              --region=${{ env.REGION }} \
+              --async \
+              --format="value(name)")
+
+            echo "BFF build started with ID: ${BUILD_ID}"
+
+            while true; do
+              STATUS=$(gcloud builds describe ${BUILD_ID} \
+                --region=${{ env.REGION }} \
+                --format="value(status)")
+
+              if [[ "${STATUS}" == "SUCCESS" ]]; then
+                echo "BFF build completed successfully"
+                break
+              elif [[ "${STATUS}" == "FAILURE" ]] || [[ "${STATUS}" == "TIMEOUT" ]] || [[ "${STATUS}" == "CANCELLED" ]]; then
+                echo "BFF build failed with status: ${STATUS}"
+                exit 1
+              fi
+
+              sleep 10
+            done
+
+            echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          else
+            echo "IMAGE_URI=${{ steps.current-images.outputs.CURRENT_BFF }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push Worker
+        id: build-worker
+        run: |
+          if [[ "${{ steps.services.outputs.DEPLOY_WORKER }}" == "true" ]]; then
+            IMAGE_TAG="${{ github.sha }}"
+            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap/worker:${IMAGE_TAG}"
+
+            BUILD_ID=$(gcloud builds submit ./app/worker \
+              --tag="${IMAGE_URI}" \
+              --region=${{ env.REGION }} \
+              --async \
+              --format="value(name)")
+
+            echo "Worker build started with ID: ${BUILD_ID}"
+
+            while true; do
+              STATUS=$(gcloud builds describe ${BUILD_ID} \
+                --region=${{ env.REGION }} \
+                --format="value(status)")
+
+              if [[ "${STATUS}" == "SUCCESS" ]]; then
+                echo "Worker build completed successfully"
+                break
+              elif [[ "${STATUS}" == "FAILURE" ]] || [[ "${STATUS}" == "TIMEOUT" ]] || [[ "${STATUS}" == "CANCELLED" ]]; then
+                echo "Worker build failed with status: ${STATUS}"
+                exit 1
+              fi
+
+              sleep 10
+            done
+
+            echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          else
+            echo "IMAGE_URI=${{ steps.current-images.outputs.CURRENT_WORKER }}" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    timeout-minutes: 30
+
+    environment: ${{ (startsWith(github.ref, 'refs/tags/app-v') || github.event.inputs.environment == 'prod') && 'production' || 'development' }}
+
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      REGION: asia-northeast1
+      WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+      SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.14"
+
+      - name: Terraform Init
+        working-directory: infra/${{ needs.build.outputs.environment }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infra/${{ needs.build.outputs.environment }}
+        run: |
+          terraform plan -no-color -input=false \
+            -var=project_id=${{ env.PROJECT_ID }} \
+            -var=region=${{ env.REGION }} \
+            -var=environment=${{ needs.build.outputs.environment }} \
+            -var=image_bff=${{ needs.build.outputs.image_bff }} \
+            -var=image_worker=${{ needs.build.outputs.image_worker }}
+
+      - name: Terraform Apply
+        working-directory: infra/${{ needs.build.outputs.environment }}
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var=project_id=${{ env.PROJECT_ID }} \
+            -var=region=${{ env.REGION }} \
+            -var=environment=${{ needs.build.outputs.environment }} \
+            -var=image_bff=${{ needs.build.outputs.image_bff }} \
+            -var=image_worker=${{ needs.build.outputs.image_worker }}
+
+      - name: Terraform Plan (Verify No Drift)
+        working-directory: infra/${{ needs.build.outputs.environment }}
+        run: |
+          terraform plan -detailed-exitcode -no-color -input=false \
+            -var=project_id=${{ env.PROJECT_ID }} \
+            -var=region=${{ env.REGION }} \
+            -var=environment=${{ needs.build.outputs.environment }} \
+            -var=image_bff=${{ needs.build.outputs.image_bff }} \
+            -var=image_worker=${{ needs.build.outputs.image_worker }} || exit 0
