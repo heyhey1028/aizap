@@ -11,25 +11,38 @@ on:
         options:
           - dev
           - prod
-      agent:
-        description: "Agent to deploy"
-        required: true
-        default: "health_advisor"
-        type: string
-      display_name:
-        description: "Display name for Agent Engine"
-        required: false
-        default: ""
-        type: string
 
 jobs:
+  detect-agents:
+    name: Detect Agents
+    runs-on: ubuntu-latest
+    outputs:
+      agents: ${{ steps.find-agents.outputs.agents }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find all agents
+        id: find-agents
+        run: |
+          # agents/ 配下のディレクトリを検出（__pycache__ を除外）
+          AGENTS=$(find app/adk/agents -mindepth 1 -maxdepth 1 -type d ! -name '__pycache__' -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "agents=${AGENTS}" >> $GITHUB_OUTPUT
+          echo "Found agents: ${AGENTS}"
+
   deploy:
-    name: Deploy to Agent Engine
+    name: Deploy ${{ matrix.agent }}
+    needs: detect-agents
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     timeout-minutes: 30
+
+    strategy:
+      matrix:
+        agent: ${{ fromJson(needs.detect-agents.outputs.agents) }}
+      fail-fast: false
 
     environment: ${{ github.event.inputs.environment == 'prod' && 'production' || 'development' }}
 
@@ -60,17 +73,14 @@ jobs:
         run: |
           pip install "google-cloud-aiplatform[adk,agent_engines]>=1.133.0"
 
-      - name: Deploy Agent to Agent Engine
+      - name: Deploy ${{ matrix.agent }} to Agent Engine
         working-directory: app/adk/agents
         run: |
-          DISPLAY_NAME="${{ github.event.inputs.display_name }}"
-          if [ -z "$DISPLAY_NAME" ]; then
-            DISPLAY_NAME="aizap-${{ github.event.inputs.agent }}"
-          fi
+          echo "Deploying agent: ${{ matrix.agent }}"
 
           adk deploy agent_engine \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --staging_bucket=gs://${{ env.PROJECT_ID }}-staging \
-            --display_name="${DISPLAY_NAME}" \
-            ${{ github.event.inputs.agent }}
+            --display_name="aizap-${{ matrix.agent }}" \
+            ${{ matrix.agent }}
