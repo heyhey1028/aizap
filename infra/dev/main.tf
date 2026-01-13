@@ -95,7 +95,7 @@ module "sa_github_actions" {
     "roles/iam.workloadIdentityPoolAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
-    "roles/storage.objectAdmin",
+    "roles/storage.admin", # staging bucket 作成 + objectAdmin
     "roles/aiplatform.admin", # Agent Engine デプロイ用
   ]
 
