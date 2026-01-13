@@ -88,6 +88,7 @@ module "sa_github_actions" {
   description  = "GitHub Actions -> GCP"
   roles = [
     "roles/artifactregistry.admin",
+    "roles/cloudbuild.builds.builder", # Cloud Build 実行用
     "roles/run.admin",
     "roles/pubsub.admin",
     "roles/iam.serviceAccountAdmin",
