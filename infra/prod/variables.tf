@@ -27,8 +27,3 @@ variable "image_worker" {
   type        = string
 }
 
-variable "image_adk" {
-  description = "aizap-adk のコンテナイメージ URI"
-  type        = string
-}
-

@@ -79,20 +79,6 @@ module "sa_worker" {
   depends_on = [google_project_service.apis]
 }
 
-module "sa_adk" {
-  source = "../modules/service_account"
-
-  project_id   = var.project_id
-  account_id   = "aizap-adk-sa"
-  display_name = "aizap-adk-sa"
-  description  = "ADK API サーバー"
-  roles = [
-    "roles/aiplatform.user",
-  ]
-
-  depends_on = [google_project_service.apis]
-}
-
 module "sa_github_actions" {
   source = "../modules/service_account"
 
@@ -110,7 +96,31 @@ module "sa_github_actions" {
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
     "roles/storage.objectAdmin",
+    "roles/aiplatform.admin", # Agent Engine デプロイ用
   ]
+
+  depends_on = [google_project_service.apis]
+}
+
+# -----------------------------------------------------------------------------
+# Cloud Storage (Agent Engine Staging)
+# -----------------------------------------------------------------------------
+
+resource "google_storage_bucket" "staging" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-staging"
+  location                    = var.region
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+
+  lifecycle_rule {
+    condition {
+      age = 30
+    }
+    action {
+      type = "Delete"
+    }
+  }
 
   depends_on = [google_project_service.apis]
 }
@@ -167,24 +177,6 @@ module "cloud_run_worker" {
   allow_unauthenticated = false
 
   depends_on = [google_project_service.apis, module.sa_worker]
-}
-
-module "cloud_run_adk" {
-  source = "../modules/cloud_run"
-
-  project_id            = var.project_id
-  location              = var.region
-  name                  = "aizap-adk"
-  image                 = var.image_adk
-  service_account_email = module.sa_adk.email
-  env_vars = {
-    ENVIRONMENT = var.environment
-  }
-  min_instance_count    = 0
-  max_instance_count    = 5
-  allow_unauthenticated = false
-
-  depends_on = [google_project_service.apis, module.sa_adk]
 }
 
 # -----------------------------------------------------------------------------
