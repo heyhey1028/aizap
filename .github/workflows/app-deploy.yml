@@ -48,8 +48,8 @@ jobs:
             workflow:
               - '.github/workflows/app-deploy.yml'
 
-  build:
-    name: Build and Push Docker Images
+  build-and-deploy:
+    name: Build and Deploy
     needs: detect-changes
     runs-on: ubuntu-latest
     permissions:
@@ -58,13 +58,6 @@ jobs:
     timeout-minutes: 30
 
     environment: ${{ (startsWith(github.ref, 'refs/tags/app-v') || github.event.inputs.environment == 'prod') && 'production' || 'development' }}
-
-    outputs:
-      image_bff: ${{ steps.build-bff.outputs.IMAGE_URI }}
-      image_worker: ${{ steps.build-worker.outputs.IMAGE_URI }}
-      environment: ${{ steps.env.outputs.ENVIRONMENT }}
-      deploy_bff: ${{ steps.services.outputs.DEPLOY_BFF }}
-      deploy_worker: ${{ steps.services.outputs.DEPLOY_WORKER }}
 
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
@@ -153,29 +146,9 @@ jobs:
             IMAGE_TAG="${{ github.sha }}"
             IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/bff:${IMAGE_TAG}"
 
-            BUILD_ID=$(gcloud builds submit ./app/bff \
+            gcloud builds submit ./app/bff \
               --tag="${IMAGE_URI}" \
-              --region=${{ env.REGION }} \
-              --async \
-              --format="value(name)")
-
-            echo "BFF build started with ID: ${BUILD_ID}"
-
-            while true; do
-              STATUS=$(gcloud builds describe ${BUILD_ID} \
-                --region=${{ env.REGION }} \
-                --format="value(status)")
-
-              if [[ "${STATUS}" == "SUCCESS" ]]; then
-                echo "BFF build completed successfully"
-                break
-              elif [[ "${STATUS}" == "FAILURE" ]] || [[ "${STATUS}" == "TIMEOUT" ]] || [[ "${STATUS}" == "CANCELLED" ]]; then
-                echo "BFF build failed with status: ${STATUS}"
-                exit 1
-              fi
-
-              sleep 10
-            done
+              --region=${{ env.REGION }}
 
             echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
           else
@@ -189,66 +162,14 @@ jobs:
             IMAGE_TAG="${{ github.sha }}"
             IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/worker:${IMAGE_TAG}"
 
-            BUILD_ID=$(gcloud builds submit ./app/worker \
+            gcloud builds submit ./app/worker \
               --tag="${IMAGE_URI}" \
-              --region=${{ env.REGION }} \
-              --async \
-              --format="value(name)")
-
-            echo "Worker build started with ID: ${BUILD_ID}"
-
-            while true; do
-              STATUS=$(gcloud builds describe ${BUILD_ID} \
-                --region=${{ env.REGION }} \
-                --format="value(status)")
-
-              if [[ "${STATUS}" == "SUCCESS" ]]; then
-                echo "Worker build completed successfully"
-                break
-              elif [[ "${STATUS}" == "FAILURE" ]] || [[ "${STATUS}" == "TIMEOUT" ]] || [[ "${STATUS}" == "CANCELLED" ]]; then
-                echo "Worker build failed with status: ${STATUS}"
-                exit 1
-              fi
-
-              sleep 10
-            done
+              --region=${{ env.REGION }}
 
             echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
           else
             echo "IMAGE_URI=${{ steps.current-images.outputs.CURRENT_WORKER }}" >> $GITHUB_OUTPUT
           fi
-
-  deploy:
-    name: Deploy to Cloud Run
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    timeout-minutes: 30
-
-    environment: ${{ (startsWith(github.ref, 'refs/tags/app-v') || github.event.inputs.environment == 'prod') && 'production' || 'development' }}
-
-    env:
-      PROJECT_ID: ${{ secrets.PROJECT_ID }}
-      REGION: asia-northeast1
-      WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
-      SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.SERVICE_ACCOUNT }}
-          create_credentials_file: true
-          export_environment_variables: true
-
-      - name: Setup Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v3
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -256,35 +177,25 @@ jobs:
           terraform_version: "~> 1.14"
 
       - name: Terraform Init
-        working-directory: infra/${{ needs.build.outputs.environment }}
+        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: infra/${{ needs.build.outputs.environment }}
+        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
         run: |
           terraform plan -no-color -input=false \
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
-            -var=environment=${{ needs.build.outputs.environment }} \
-            -var=image_bff=${{ needs.build.outputs.image_bff }} \
-            -var=image_worker=${{ needs.build.outputs.image_worker }}
+            -var=environment=${{ steps.env.outputs.ENVIRONMENT }} \
+            -var=image_bff=${{ steps.build-bff.outputs.IMAGE_URI }} \
+            -var=image_worker=${{ steps.build-worker.outputs.IMAGE_URI }}
 
       - name: Terraform Apply
-        working-directory: infra/${{ needs.build.outputs.environment }}
+        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
         run: |
           terraform apply -auto-approve -input=false \
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
-            -var=environment=${{ needs.build.outputs.environment }} \
-            -var=image_bff=${{ needs.build.outputs.image_bff }} \
-            -var=image_worker=${{ needs.build.outputs.image_worker }}
-
-      - name: Terraform Plan (Verify No Drift)
-        working-directory: infra/${{ needs.build.outputs.environment }}
-        run: |
-          terraform plan -detailed-exitcode -no-color -input=false \
-            -var=project_id=${{ env.PROJECT_ID }} \
-            -var=region=${{ env.REGION }} \
-            -var=environment=${{ needs.build.outputs.environment }} \
-            -var=image_bff=${{ needs.build.outputs.image_bff }} \
-            -var=image_worker=${{ needs.build.outputs.image_worker }} || exit 0
+            -var=environment=${{ steps.env.outputs.ENVIRONMENT }} \
+            -var=image_bff=${{ steps.build-bff.outputs.IMAGE_URI }} \
+            -var=image_worker=${{ steps.build-worker.outputs.IMAGE_URI }}
