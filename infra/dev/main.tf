@@ -105,6 +105,7 @@ module "sa_github_actions" {
     "roles/run.admin",
     "roles/pubsub.admin",
     "roles/iam.serviceAccountUser",
+    "roles/iam.workloadIdentityPoolAdmin",
     "roles/serviceusage.serviceUsageAdmin",
     "roles/storage.objectAdmin",
   ]
