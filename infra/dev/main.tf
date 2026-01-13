@@ -101,7 +101,7 @@ module "sa_github_actions" {
   display_name = "github-actions-sa"
   description  = "GitHub Actions -> GCP"
   roles = [
-    "roles/artifactregistry.writer",
+    "roles/artifactregistry.admin",
     "roles/run.admin",
     "roles/pubsub.admin",
     "roles/iam.serviceAccountAdmin",
@@ -123,7 +123,7 @@ resource "google_artifact_registry_repository" "images" {
   project       = var.project_id
   location      = var.region
   repository_id = "aizap-images"
-  description   = "Container images for aizap"
+  description   = "aizap 用コンテナイメージ"
   format        = "DOCKER"
 
   depends_on = [google_project_service.apis]
