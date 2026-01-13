@@ -101,7 +101,7 @@ module "sa_github_actions" {
   display_name = "github-actions-sa"
   description  = "GitHub Actions -> GCP"
   roles = [
-    "roles/artifactregistry.writer",
+    "roles/artifactregistry.admin",
     "roles/run.admin",
     "roles/pubsub.admin",
     "roles/iam.serviceAccountAdmin",
