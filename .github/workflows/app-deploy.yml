@@ -148,7 +148,8 @@ jobs:
 
             gcloud builds submit ./app/bff \
               --tag="${IMAGE_URI}" \
-              --region=${{ env.REGION }}
+              --region=${{ env.REGION }} \
+              --suppress-logs
 
             echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
           else
@@ -164,7 +165,8 @@ jobs:
 
             gcloud builds submit ./app/worker \
               --tag="${IMAGE_URI}" \
-              --region=${{ env.REGION }}
+              --region=${{ env.REGION }} \
+              --suppress-logs
 
             echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
           else
