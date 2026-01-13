@@ -144,7 +144,7 @@ jobs:
         run: |
           if [[ "${{ steps.services.outputs.DEPLOY_BFF }}" == "true" ]]; then
             IMAGE_TAG="${{ github.sha }}"
-            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap/bff:${IMAGE_TAG}"
+            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/bff:${IMAGE_TAG}"
 
             BUILD_ID=$(gcloud builds submit ./app/bff \
               --tag="${IMAGE_URI}" \
@@ -180,7 +180,7 @@ jobs:
         run: |
           if [[ "${{ steps.services.outputs.DEPLOY_WORKER }}" == "true" ]]; then
             IMAGE_TAG="${{ github.sha }}"
-            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap/worker:${IMAGE_TAG}"
+            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/worker:${IMAGE_TAG}"
 
             BUILD_ID=$(gcloud builds submit ./app/worker \
               --tag="${IMAGE_URI}" \
