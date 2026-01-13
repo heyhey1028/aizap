@@ -104,6 +104,7 @@ module "sa_github_actions" {
     "roles/artifactregistry.writer",
     "roles/run.admin",
     "roles/pubsub.admin",
+    "roles/iam.serviceAccountAdmin",
     "roles/iam.serviceAccountUser",
     "roles/iam.workloadIdentityPoolAdmin",
     "roles/serviceusage.serviceUsageAdmin",
