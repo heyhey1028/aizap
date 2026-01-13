@@ -21,7 +21,8 @@ aizap/
 │   └── workflows/
 │       ├── infra-plan.yml          # PR 時に terraform plan（インフラ）
 │       ├── infra-release.yml       # main push 時に terraform apply（インフラ）
-│       └── app-deploy.yml          # アプリのビルド・デプロイ
+│       ├── app-deploy.yml          # アプリのビルド・デプロイ
+│       └── agent-deploy.yml        # Agent Engine へエージェントをデプロイ
 ├── app/
 │   ├── bff/                        # aizap-bff (LINE Webhook, LIFF API)
 │   │   ├── Dockerfile
@@ -175,6 +176,7 @@ GitHub Actions を使用して CI/CD を実現しています。
 ### Agent Engine デプロイ（agent-deploy.yml）
 
 ADK エージェントは Vertex AI Agent Engine にデプロイします。
+`app/adk/agents/` 配下の全エージェントを自動検出し、並列でデプロイします。
 
 ```bash
 # GitHub Actions から手動実行
@@ -184,7 +186,6 @@ ADK エージェントは Vertex AI Agent Engine にデプロイします。
 | 入力 | 説明 |
 |------|------|
 | `environment` | dev / prod |
-| `agent` | デプロイするエージェント名（default: health_advisor） |
 
 ### 環境の切り替え
 
@@ -296,8 +297,8 @@ adk deploy agent_engine \
 #### GitHub Actions からデプロイ（推奨）
 
 1. Actions → **Deploy Agent Engine** → **Run workflow**
-2. environment と agent を選択
-3. 実行
+2. environment を選択（dev / prod）
+3. 実行（`app/adk/agents/` 配下の全エージェントが自動デプロイされます）
 
 ### インフラ（Terraform）
 
