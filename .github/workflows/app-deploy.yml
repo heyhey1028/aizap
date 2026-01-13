@@ -146,10 +146,26 @@ jobs:
             IMAGE_TAG="${{ github.sha }}"
             IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/bff:${IMAGE_TAG}"
 
-            gcloud builds submit ./app/bff \
+            BUILD_ID=$(gcloud builds submit ./app/bff \
               --tag="${IMAGE_URI}" \
               --region=${{ env.REGION }} \
-              --suppress-logs
+              --async \
+              --format="value(id)")
+
+            echo "Waiting for BFF build: ${BUILD_ID}"
+            while true; do
+              STATUS=$(gcloud builds describe "${BUILD_ID}" \
+                --region=${{ env.REGION }} \
+                --format="value(status)")
+              echo "Build status: ${STATUS}"
+              if [[ "${STATUS}" == "SUCCESS" ]]; then
+                break
+              elif [[ "${STATUS}" == "FAILURE" || "${STATUS}" == "TIMEOUT" || "${STATUS}" == "CANCELLED" ]]; then
+                echo "Build failed with status: ${STATUS}"
+                exit 1
+              fi
+              sleep 10
+            done
 
             echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
           else
@@ -163,10 +179,26 @@ jobs:
             IMAGE_TAG="${{ github.sha }}"
             IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/worker:${IMAGE_TAG}"
 
-            gcloud builds submit ./app/worker \
+            BUILD_ID=$(gcloud builds submit ./app/worker \
               --tag="${IMAGE_URI}" \
               --region=${{ env.REGION }} \
-              --suppress-logs
+              --async \
+              --format="value(id)")
+
+            echo "Waiting for Worker build: ${BUILD_ID}"
+            while true; do
+              STATUS=$(gcloud builds describe "${BUILD_ID}" \
+                --region=${{ env.REGION }} \
+                --format="value(status)")
+              echo "Build status: ${STATUS}"
+              if [[ "${STATUS}" == "SUCCESS" ]]; then
+                break
+              elif [[ "${STATUS}" == "FAILURE" || "${STATUS}" == "TIMEOUT" || "${STATUS}" == "CANCELLED" ]]; then
+                echo "Build failed with status: ${STATUS}"
+                exit 1
+              fi
+              sleep 10
+            done
 
             echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
           else
