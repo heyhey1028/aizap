@@ -1,0 +1,106 @@
+name: Infrastructure Plan
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-plan.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to plan"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    timeout-minutes: 30
+
+    # PR is always dev, workflow_dispatch respects input
+    environment: ${{ github.event.inputs.environment == 'prod' && 'production' || 'development' }}
+
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      REGION: asia-northeast1
+      WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+      SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Decide target environment
+        id: decide-env
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "TF_ENV=dev" >> "$GITHUB_ENV"
+          else
+            echo "TF_ENV=${{ github.event.inputs.environment }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.14"
+
+      - name: Terraform Format Check
+        working-directory: infra/${{ env.TF_ENV }}
+        run: terraform fmt -check -recursive ..
+
+      - name: Terraform Init
+        working-directory: infra/${{ env.TF_ENV }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: infra/${{ env.TF_ENV }}
+        run: terraform validate
+
+      - name: Get current Cloud Run images
+        id: current-images
+        run: |
+          BFF_IMAGE=$(gcloud run services describe aizap-bff \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
+          WORKER_IMAGE=$(gcloud run services describe aizap-worker \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
+          ADK_IMAGE=$(gcloud run services describe aizap-adk \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
+          echo "IMAGE_BFF=${BFF_IMAGE}" >> $GITHUB_OUTPUT
+          echo "IMAGE_WORKER=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
+          echo "IMAGE_ADK=${ADK_IMAGE}" >> $GITHUB_OUTPUT
+          echo "Current images: BFF=${BFF_IMAGE}, Worker=${WORKER_IMAGE}, ADK=${ADK_IMAGE}"
+
+      - name: Terraform Plan
+        working-directory: infra/${{ env.TF_ENV }}
+        run: |
+          terraform plan -no-color -lock=false -input=false \
+            -var=project_id=${{ env.PROJECT_ID }} \
+            -var=region=${{ env.REGION }} \
+            -var=environment=${{ env.TF_ENV }} \
+            -var=image_bff=${{ steps.current-images.outputs.IMAGE_BFF }} \
+            -var=image_worker=${{ steps.current-images.outputs.IMAGE_WORKER }} \
+            -var=image_adk=${{ steps.current-images.outputs.IMAGE_ADK }}
