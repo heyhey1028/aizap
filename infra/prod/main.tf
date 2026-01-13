@@ -88,7 +88,8 @@ module "sa_github_actions" {
   description  = "GitHub Actions -> GCP"
   roles = [
     "roles/artifactregistry.admin",
-    "roles/cloudbuild.builds.builder", # Cloud Build 実行用
+    "roles/cloudbuild.builds.builder",
+    "roles/logging.viewer",
     "roles/run.admin",
     "roles/pubsub.admin",
     "roles/iam.serviceAccountAdmin",
@@ -96,8 +97,8 @@ module "sa_github_actions" {
     "roles/iam.workloadIdentityPoolAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
-    "roles/storage.admin", # staging bucket 作成 + objectAdmin
-    "roles/aiplatform.admin", # Agent Engine デプロイ用
+    "roles/storage.admin",
+    "roles/aiplatform.admin",
   ]
 
   depends_on = [google_project_service.apis]
