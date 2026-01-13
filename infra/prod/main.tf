@@ -1,0 +1,235 @@
+# -----------------------------------------------------------------------------
+# Terraform Configuration for prod environment
+# -----------------------------------------------------------------------------
+
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 7.15"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+# -----------------------------------------------------------------------------
+# Local Variables
+# -----------------------------------------------------------------------------
+
+locals {
+  services = [
+    "run.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "aiplatform.googleapis.com",
+    "pubsub.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# Enable APIs
+# -----------------------------------------------------------------------------
+
+resource "google_project_service" "apis" {
+  for_each = toset(local.services)
+
+  project            = var.project_id
+  service            = each.value
+  disable_on_destroy = false
+}
+
+# -----------------------------------------------------------------------------
+# Service Accounts
+# -----------------------------------------------------------------------------
+
+module "sa_bff" {
+  source = "../modules/service_account"
+
+  project_id   = var.project_id
+  account_id   = "aizap-bff-sa"
+  display_name = "aizap-bff-sa"
+  description  = "BFF (Webhook/LIFF)"
+  roles = [
+    "roles/pubsub.publisher",
+  ]
+
+  depends_on = [google_project_service.apis]
+}
+
+module "sa_worker" {
+  source = "../modules/service_account"
+
+  project_id   = var.project_id
+  account_id   = "aizap-worker-sa"
+  display_name = "aizap-worker-sa"
+  description  = "Worker (Pub/Sub Push)"
+  roles = [
+    "roles/pubsub.subscriber",
+  ]
+
+  depends_on = [google_project_service.apis]
+}
+
+module "sa_adk" {
+  source = "../modules/service_account"
+
+  project_id   = var.project_id
+  account_id   = "aizap-adk-sa"
+  display_name = "aizap-adk-sa"
+  description  = "ADK API サーバー"
+  roles = [
+    "roles/aiplatform.user",
+  ]
+
+  depends_on = [google_project_service.apis]
+}
+
+module "sa_github_actions" {
+  source = "../modules/service_account"
+
+  project_id   = var.project_id
+  account_id   = "github-actions-sa"
+  display_name = "github-actions-sa"
+  description  = "GitHub Actions -> GCP"
+  roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.admin",
+    "roles/pubsub.admin",
+    "roles/iam.serviceAccountAdmin",
+    "roles/iam.serviceAccountUser",
+    "roles/iam.workloadIdentityPoolAdmin",
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/storage.objectAdmin",
+  ]
+
+  depends_on = [google_project_service.apis]
+}
+
+# -----------------------------------------------------------------------------
+# Artifact Registry
+# -----------------------------------------------------------------------------
+
+resource "google_artifact_registry_repository" "images" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = "aizap-images"
+  description   = "Container images for aizap"
+  format        = "DOCKER"
+
+  depends_on = [google_project_service.apis]
+}
+
+# -----------------------------------------------------------------------------
+# Cloud Run Services
+# -----------------------------------------------------------------------------
+
+module "cloud_run_bff" {
+  source = "../modules/cloud_run"
+
+  project_id            = var.project_id
+  location              = var.region
+  name                  = "aizap-bff"
+  image                 = var.image_bff
+  service_account_email = module.sa_bff.email
+  env_vars = {
+    ENVIRONMENT = var.environment
+  }
+  min_instance_count    = 0
+  max_instance_count    = 5
+  allow_unauthenticated = true
+
+  depends_on = [google_project_service.apis, module.sa_bff]
+}
+
+module "cloud_run_worker" {
+  source = "../modules/cloud_run"
+
+  project_id            = var.project_id
+  location              = var.region
+  name                  = "aizap-worker"
+  image                 = var.image_worker
+  service_account_email = module.sa_worker.email
+  env_vars = {
+    ENVIRONMENT = var.environment
+  }
+  min_instance_count    = 0
+  max_instance_count    = 5
+  allow_unauthenticated = false
+
+  depends_on = [google_project_service.apis, module.sa_worker]
+}
+
+module "cloud_run_adk" {
+  source = "../modules/cloud_run"
+
+  project_id            = var.project_id
+  location              = var.region
+  name                  = "aizap-adk"
+  image                 = var.image_adk
+  service_account_email = module.sa_adk.email
+  env_vars = {
+    ENVIRONMENT = var.environment
+  }
+  min_instance_count    = 0
+  max_instance_count    = 5
+  allow_unauthenticated = false
+
+  depends_on = [google_project_service.apis, module.sa_adk]
+}
+
+# -----------------------------------------------------------------------------
+# Pub/Sub
+# -----------------------------------------------------------------------------
+
+module "pubsub_webhook" {
+  source = "../modules/pubsub"
+
+  project_id                 = var.project_id
+  topic_name                 = "aizap-webhook-events"
+  subscription_name          = "aizap-webhook-events-sub"
+  push_endpoint              = "${module.cloud_run_worker.service_uri}/webhook"
+  push_service_account_email = module.sa_worker.email
+  ack_deadline_seconds       = 60
+  message_retention_duration = "604800s"
+
+  depends_on = [
+    google_project_service.apis,
+    module.cloud_run_worker,
+    module.sa_worker,
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# Workload Identity Federation
+# -----------------------------------------------------------------------------
+
+module "workload_identity" {
+  source = "../modules/workload_identity"
+
+  project_id            = var.project_id
+  pool_id               = "github-actions-pool"
+  pool_display_name     = "github-actions-pool"
+  pool_description      = "GitHub Actions 用 Workload Identity Pool"
+  provider_id           = "github-actions-provider"
+  provider_display_name = "github-actions-provider"
+  attribute_condition   = "assertion.repository_owner == \"heyhey1028\""
+  attribute_mapping = {
+    "google.subject" = "assertion.repository"
+  }
+  issuer_uri         = "https://token.actions.githubusercontent.com"
+  service_account_id = module.sa_github_actions.id
+  github_repository  = "heyhey1028/aizap"
+
+  depends_on = [google_project_service.apis, module.sa_github_actions]
+}
+
