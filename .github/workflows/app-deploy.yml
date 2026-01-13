@@ -31,6 +31,7 @@ jobs:
     outputs:
       bff: ${{ steps.changes.outputs.bff }}
       worker: ${{ steps.changes.outputs.worker }}
+      workflow: ${{ steps.changes.outputs.workflow }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,6 +45,8 @@ jobs:
               - 'app/bff/**'
             worker:
               - 'app/worker/**'
+            workflow:
+              - '.github/workflows/app-deploy.yml'
 
   build:
     name: Build and Push Docker Images
@@ -97,6 +100,10 @@ jobs:
             DEPLOY_WORKER=true
           elif [[ "$GITHUB_REF" == refs/tags/app-v* ]]; then
             # タグ → 全サービス
+            DEPLOY_BFF=true
+            DEPLOY_WORKER=true
+          elif [[ "${{ needs.detect-changes.outputs.workflow }}" == "true" ]]; then
+            # ワークフローファイル変更 → 全サービス
             DEPLOY_BFF=true
             DEPLOY_WORKER=true
           else
