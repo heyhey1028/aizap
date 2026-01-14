@@ -1,5 +1,4 @@
 """aizap-bff: LINE Webhook 受信、LIFF API エンドポイント"""
-# Deploy test: verify app-deploy.yml changes
 
 import os
 

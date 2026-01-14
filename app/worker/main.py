@@ -1,5 +1,4 @@
 """aizap-worker: Pub/Sub Push 受信 → ADK 呼び出し → LINE 返信"""
-# Deploy test: verify app-deploy.yml changes
 
 import os
 
