@@ -84,14 +84,31 @@ jobs:
         run: |
           pip install "google-cloud-aiplatform[adk,agent_engines]>=1.133.0"
 
+      - name: Get existing Agent Engine ID
+        id: existing-agent
+        uses: ./.github/actions/get-agent-engine-id
+        with:
+          display_name: aizap-${{ matrix.agent }}
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
       - name: Deploy ${{ matrix.agent }} to Agent Engine
         working-directory: app/adk/agents
         run: |
           echo "Deploying agent: ${{ matrix.agent }} to ${{ steps.env.outputs.environment }}"
+
+          AGENT_ENGINE_ID_OPT=""
+          if [ -n "${{ steps.existing-agent.outputs.agent_engine_id }}" ]; then
+            echo "Updating existing agent: ${{ steps.existing-agent.outputs.agent_engine_id }}"
+            AGENT_ENGINE_ID_OPT="--agent_engine_id=${{ steps.existing-agent.outputs.agent_engine_id }}"
+          else
+            echo "Creating new agent"
+          fi
 
           adk deploy agent_engine \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --staging_bucket=gs://${{ env.PROJECT_ID }}-staging \
             --display_name="aizap-${{ matrix.agent }}" \
+            $AGENT_ENGINE_ID_OPT \
             ${{ matrix.agent }}
