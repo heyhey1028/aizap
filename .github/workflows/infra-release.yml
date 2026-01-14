@@ -43,14 +43,13 @@ jobs:
 
       - name: Decide target environment
         id: decide-env
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/infra-v* ]]; then
-            echo "TF_ENV=prod" >> "$GITHUB_ENV"
-          elif [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event_name }}" = "push" ]; then
-            echo "TF_ENV=dev" >> "$GITHUB_ENV"
-          else
-            echo "TF_ENV=${{ github.event.inputs.environment }}" >> "$GITHUB_ENV"
-          fi
+        uses: ./.github/actions/decide-environment
+        with:
+          tag_prefix: "infra-v"
+          input_environment: ${{ github.event.inputs.environment }}
+
+      - name: Set TF_ENV
+        run: echo "TF_ENV=${{ steps.decide-env.outputs.environment }}" >> "$GITHUB_ENV"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3

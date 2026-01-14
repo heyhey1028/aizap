@@ -42,12 +42,12 @@ jobs:
 
       - name: Decide target environment
         id: decide-env
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "TF_ENV=dev" >> "$GITHUB_ENV"
-          else
-            echo "TF_ENV=${{ github.event.inputs.environment }}" >> "$GITHUB_ENV"
-          fi
+        uses: ./.github/actions/decide-environment
+        with:
+          input_environment: ${{ github.event.inputs.environment }}
+
+      - name: Set TF_ENV
+        run: echo "TF_ENV=${{ steps.decide-env.outputs.environment }}" >> "$GITHUB_ENV"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3

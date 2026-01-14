@@ -71,12 +71,10 @@ jobs:
 
       - name: Determine deployment environment
         id: env
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/app-v* ]] || [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
-            echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
-          else
-            echo "ENVIRONMENT=dev" >> $GITHUB_OUTPUT
-          fi
+        uses: ./.github/actions/decide-environment
+        with:
+          tag_prefix: "app-v"
+          input_environment: ${{ github.event.inputs.environment }}
 
       - name: Decide services to deploy
         id: services
@@ -181,25 +179,25 @@ jobs:
           terraform_version: "~> 1.14"
 
       - name: Terraform Init
-        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
+        working-directory: infra/${{ steps.env.outputs.environment }}
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
+        working-directory: infra/${{ steps.env.outputs.environment }}
         run: |
           terraform plan -no-color -input=false \
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
-            -var=environment=${{ steps.env.outputs.ENVIRONMENT }} \
+            -var=environment=${{ steps.env.outputs.environment }} \
             -var=image_bff=${{ steps.image-bff.outputs.uri }} \
             -var=image_worker=${{ steps.image-worker.outputs.uri }}
 
       - name: Terraform Apply
-        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
+        working-directory: infra/${{ steps.env.outputs.environment }}
         run: |
           terraform apply -auto-approve -input=false \
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
-            -var=environment=${{ steps.env.outputs.ENVIRONMENT }} \
+            -var=environment=${{ steps.env.outputs.environment }} \
             -var=image_bff=${{ steps.image-bff.outputs.uri }} \
             -var=image_worker=${{ steps.image-worker.outputs.uri }}

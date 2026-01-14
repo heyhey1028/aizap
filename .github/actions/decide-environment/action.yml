@@ -1,0 +1,42 @@
+name: Decide Environment
+description: Determine deployment environment based on trigger
+
+inputs:
+  tag_prefix:
+    description: Tag prefix for production (e.g., "app-v", "infra-v")
+    required: false
+    default: ""
+  input_environment:
+    description: Environment from workflow_dispatch input
+    required: false
+    default: ""
+  default_environment:
+    description: Default environment if no other condition matches
+    required: false
+    default: "dev"
+
+outputs:
+  environment:
+    description: Determined environment (dev or prod)
+    value: ${{ steps.decide.outputs.environment }}
+
+runs:
+  using: composite
+  steps:
+    - id: decide
+      shell: bash
+      run: |
+        TAG_PREFIX="${{ inputs.tag_prefix }}"
+        INPUT_ENV="${{ inputs.input_environment }}"
+        DEFAULT_ENV="${{ inputs.default_environment }}"
+
+        if [[ -n "$TAG_PREFIX" && "$GITHUB_REF" == refs/tags/${TAG_PREFIX}* ]]; then
+          echo "environment=prod" >> $GITHUB_OUTPUT
+          echo "Matched tag prefix '${TAG_PREFIX}' -> prod"
+        elif [[ "$INPUT_ENV" == "prod" ]]; then
+          echo "environment=prod" >> $GITHUB_OUTPUT
+          echo "Input environment is 'prod' -> prod"
+        else
+          echo "environment=${DEFAULT_ENV}" >> $GITHUB_OUTPUT
+          echo "Using default environment -> ${DEFAULT_ENV}"
+        fi
