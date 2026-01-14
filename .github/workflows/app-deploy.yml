@@ -40,6 +40,7 @@ jobs:
         uses: dorny/paths-filter@v3
         id: changes
         with:
+          base: ${{ github.event.before }}
           filters: |
             bff:
               - 'app/bff/**'
@@ -102,6 +103,15 @@ jobs:
           gcloud config set project ${{ env.PROJECT_ID }}
           gcloud config set run/region ${{ env.REGION }}
 
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "suffix=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          else
+            echo "suffix=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
       # BFF
       - name: Get current BFF image
         id: current-bff
@@ -117,7 +127,7 @@ jobs:
         uses: ./.github/actions/cloud-build
         with:
           source_dir: ./app/bff
-          image_uri: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/bff:${{ github.sha }}
+          image_uri: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/bff:${{ steps.tag.outputs.suffix }}
           region: ${{ env.REGION }}
 
       - name: Set BFF image
@@ -144,7 +154,7 @@ jobs:
         uses: ./.github/actions/cloud-build
         with:
           source_dir: ./app/worker
-          image_uri: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/worker:${{ github.sha }}
+          image_uri: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/worker:${{ steps.tag.outputs.suffix }}
           region: ${{ env.REGION }}
 
       - name: Set Worker image
