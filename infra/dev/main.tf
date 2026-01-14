@@ -104,6 +104,20 @@ module "sa_github_actions" {
   depends_on = [google_project_service.apis]
 }
 
+module "sa_adk_agent" {
+  source = "../modules/service_account"
+
+  project_id   = var.project_id
+  account_id   = "aizap-adk-sa"
+  display_name = "aizap-adk-sa"
+  description  = "ADK Agent running on Agent Engine"
+  roles = [
+    "roles/aiplatform.user",
+  ]
+
+  depends_on = [google_project_service.apis]
+}
+
 # -----------------------------------------------------------------------------
 # Cloud Storage (Agent Engine Staging)
 # -----------------------------------------------------------------------------
