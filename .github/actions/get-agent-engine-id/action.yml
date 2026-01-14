@@ -23,15 +23,12 @@ runs:
     - id: get
       shell: bash
       run: |
-        # Install alpha component if not available
-        gcloud components install alpha --quiet 2>/dev/null || true
-        
-        EXISTING_ID=$(gcloud alpha ai reasoning-engines list \
-          --project=${{ inputs.project_id }} \
-          --region=${{ inputs.region }} \
-          --filter="displayName=${{ inputs.display_name }}" \
-          --format="value(name)" \
+        # Use REST API to get existing Agent Engine by display name
+        EXISTING_ID=$(curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+          "https://${{ inputs.region }}-aiplatform.googleapis.com/v1beta1/projects/${{ inputs.project_id }}/locations/${{ inputs.region }}/reasoningEngines" \
+          | jq -r ".reasoningEngines[] | select(.displayName == \"${{ inputs.display_name }}\") | .name" \
           | head -1)
+        
         echo "agent_engine_id=${EXISTING_ID}" >> $GITHUB_OUTPUT
         if [ -n "$EXISTING_ID" ]; then
           echo "Found existing agent: ${EXISTING_ID}"
