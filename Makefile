@@ -6,6 +6,7 @@ ci-ts: ## Run lint, format, type-check, and test for ts
 	@make lint-ts
 	@make format-ts
 	@make type-check-ts
+	@make build-ts
 	@make test-ts
 
 .PHONY: lint-ts
@@ -14,11 +15,15 @@ lint-ts: ## Run lint for ts
 
 .PHONY: format-ts	
 format-ts:
-	@cd app/bff && pnpm format
+	@cd app/bff && pnpm format:check
 
 .PHONY: type-check-ts
 type-check-ts: ## Run type-check for ts
 	@cd app/bff && pnpm type-check
+
+.PHONY: build-ts
+build-ts: ## Build for ts
+	@cd app/bff && pnpm build
 
 .PHONY: test-ts
 test-ts: ## Run test for ts

@@ -7,6 +7,9 @@ on:
       - 'app/bff/**'
       - '.github/workflows/ci-typescript.yaml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -18,6 +21,7 @@ jobs:
     defaults:
       run:
         working-directory: app/bff
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
