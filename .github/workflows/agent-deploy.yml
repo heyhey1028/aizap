@@ -92,6 +92,17 @@ jobs:
           region: ${{ env.REGION }}
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Generate .agent_engine_config.json
+        working-directory: app/adk/agents/${{ matrix.agent }}
+        run: |
+          cat > .agent_engine_config.json << EOF
+          {
+            "service_account": "aizap-adk-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
+          }
+          EOF
+          echo "Generated .agent_engine_config.json:"
+          cat .agent_engine_config.json
+
       - name: Deploy ${{ matrix.agent }} to Agent Engine
         working-directory: app/adk/agents
         run: |
