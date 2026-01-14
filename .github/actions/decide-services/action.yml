@@ -1,0 +1,74 @@
+name: Decide Services
+description: Determine which services to deploy based on trigger and changes
+
+inputs:
+  manual_services:
+    description: Comma-separated list of services from workflow_dispatch input
+    required: false
+    default: ""
+  tag_prefix:
+    description: Tag prefix that triggers all services (e.g., "app-v")
+    required: false
+    default: ""
+  workflow_changed:
+    description: Whether the workflow file was changed
+    required: false
+    default: "false"
+  bff_changed:
+    description: Whether BFF files were changed
+    required: false
+    default: "false"
+  worker_changed:
+    description: Whether Worker files were changed
+    required: false
+    default: "false"
+
+outputs:
+  deploy_bff:
+    description: Whether to deploy BFF
+    value: ${{ steps.decide.outputs.deploy_bff }}
+  deploy_worker:
+    description: Whether to deploy Worker
+    value: ${{ steps.decide.outputs.deploy_worker }}
+
+runs:
+  using: composite
+  steps:
+    - id: decide
+      shell: bash
+      run: |
+        MANUAL_SERVICES="${{ inputs.manual_services }}"
+        TAG_PREFIX="${{ inputs.tag_prefix }}"
+        WORKFLOW_CHANGED="${{ inputs.workflow_changed }}"
+        BFF_CHANGED="${{ inputs.bff_changed }}"
+        WORKER_CHANGED="${{ inputs.worker_changed }}"
+
+        if [ -n "$MANUAL_SERVICES" ]; then
+          # Manual selection
+          DEPLOY_BFF=$([[ "$MANUAL_SERVICES" == *"bff"* ]] && echo 'true' || echo 'false')
+          DEPLOY_WORKER=$([[ "$MANUAL_SERVICES" == *"worker"* ]] && echo 'true' || echo 'false')
+          echo "Manual selection: BFF=${DEPLOY_BFF}, Worker=${DEPLOY_WORKER}"
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "$MANUAL_SERVICES" ]; then
+          # workflow_dispatch with empty services -> all
+          DEPLOY_BFF=true
+          DEPLOY_WORKER=true
+          echo "workflow_dispatch (all services)"
+        elif [[ -n "$TAG_PREFIX" && "$GITHUB_REF" == refs/tags/${TAG_PREFIX}* ]]; then
+          # Tag push -> all
+          DEPLOY_BFF=true
+          DEPLOY_WORKER=true
+          echo "Tag push (${TAG_PREFIX}*) -> all services"
+        elif [[ "$WORKFLOW_CHANGED" == "true" ]]; then
+          # Workflow file changed -> all
+          DEPLOY_BFF=true
+          DEPLOY_WORKER=true
+          echo "Workflow changed -> all services"
+        else
+          # Path detection
+          DEPLOY_BFF=${BFF_CHANGED}
+          DEPLOY_WORKER=${WORKER_CHANGED}
+          echo "Path detection: BFF=${DEPLOY_BFF}, Worker=${DEPLOY_WORKER}"
+        fi
+
+        echo "deploy_bff=${DEPLOY_BFF}" >> $GITHUB_OUTPUT
+        echo "deploy_worker=${DEPLOY_WORKER}" >> $GITHUB_OUTPUT
