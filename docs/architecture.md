@@ -33,7 +33,7 @@ flowchart LR
         PubSub["Pub/Sub"]
 
         subgraph VertexAI["Vertex AI"]
-            AgentEngine["Agent Engine: health-advisor"]
+            AgentEngine["Agent Engine"]
         end
     end
 
@@ -69,7 +69,7 @@ flowchart LR
 |---------------|------|
 | **aizap-bff** | LINE Webhook 受信、LIFF API エンドポイント |
 | **aizap-worker** | Pub/Sub Push 受信、Agent Engine 呼び出し、LINE 返信 |
-| **Agent Engine (health-advisor)** | ADK エージェント（Vertex AI マネージドサービス） |
+| **Agent Engine** | ADK エージェント（`app/adk/agents/` 配下を自動デプロイ） |
 | **Cloud Pub/Sub** | Webhook 非同期処理（LINE 2秒タイムアウト対策） |
 | **Artifact Registry** | コンテナイメージ保存 |
 | **Workload Identity** | GitHub Actions → GCP 認証 |
