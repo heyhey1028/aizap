@@ -1,0 +1,37 @@
+name: Get Agent Engine ID
+description: Get existing Agent Engine ID by display name
+
+inputs:
+  display_name:
+    description: Display name of the agent
+    required: true
+  region:
+    description: GCP region
+    required: true
+  project_id:
+    description: GCP project ID
+    required: true
+
+outputs:
+  agent_engine_id:
+    description: Agent Engine ID (empty if not found)
+    value: ${{ steps.get.outputs.agent_engine_id }}
+
+runs:
+  using: composite
+  steps:
+    - id: get
+      shell: bash
+      run: |
+        EXISTING_ID=$(gcloud ai reasoning-engines list \
+          --project=${{ inputs.project_id }} \
+          --region=${{ inputs.region }} \
+          --filter="displayName=${{ inputs.display_name }}" \
+          --format="value(name)" \
+          | head -1)
+        echo "agent_engine_id=${EXISTING_ID}" >> $GITHUB_OUTPUT
+        if [ -n "$EXISTING_ID" ]; then
+          echo "Found existing agent: ${EXISTING_ID}"
+        else
+          echo "No existing agent found, will create new"
+        fi
