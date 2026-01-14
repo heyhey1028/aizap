@@ -102,21 +102,6 @@ Hello World を返す（動作確認用）
 Hello, World!
 ```
 
-## 今後の実装予定
-
-以下のエンドポイントを順次実装予定です。
-
-- `GET /health` - ヘルスチェック
-- `POST /webhook` - LINE Webhook 受信
-  - LINE 署名検証
-  - Pub/Sub に Publish
-- `POST /api/run` - LIFF API: エージェント実行（同期）
-  - LINE Login 検証
-  - ADK /run に中継
-- `GET /api/run_sse` - LIFF API: エージェント実行（SSE ストリーミング）
-  - LINE Login 検証
-  - ADK /run_sse に SSE 中継
-
 ## Docker
 
 ### ビルド
