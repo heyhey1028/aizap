@@ -23,7 +23,10 @@ runs:
     - id: get
       shell: bash
       run: |
-        EXISTING_ID=$(gcloud ai reasoning-engines list \
+        # Install alpha component if not available
+        gcloud components install alpha --quiet 2>/dev/null || true
+        
+        EXISTING_ID=$(gcloud alpha ai reasoning-engines list \
           --project=${{ inputs.project_id }} \
           --region=${{ inputs.region }} \
           --filter="displayName=${{ inputs.display_name }}" \
