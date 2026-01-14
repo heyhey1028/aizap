@@ -74,20 +74,21 @@ jobs:
         working-directory: infra/${{ env.TF_ENV }}
         run: terraform validate
 
-      - name: Get current Cloud Run images
-        id: current-images
-        run: |
-          BFF_IMAGE=$(gcloud run services describe aizap-bff \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          WORKER_IMAGE=$(gcloud run services describe aizap-worker \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          echo "IMAGE_BFF=${BFF_IMAGE}" >> $GITHUB_OUTPUT
-          echo "IMAGE_WORKER=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
-          echo "Current images: BFF=${BFF_IMAGE}, Worker=${WORKER_IMAGE}"
+      - name: Get current BFF image
+        id: current-bff
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-bff
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Get current Worker image
+        id: current-worker
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-worker
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Terraform Plan
         working-directory: infra/${{ env.TF_ENV }}
@@ -96,5 +97,5 @@ jobs:
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
-            -var=image_bff=${{ steps.current-images.outputs.IMAGE_BFF }} \
-            -var=image_worker=${{ steps.current-images.outputs.IMAGE_WORKER }}
+            -var=image_bff=${{ steps.current-bff.outputs.image_uri }} \
+            -var=image_worker=${{ steps.current-worker.outputs.image_uri }}
