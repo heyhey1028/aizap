@@ -26,7 +26,7 @@ runs:
         # Use REST API to get existing Agent Engine by display name
         EXISTING_ID=$(curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
           "https://${{ inputs.region }}-aiplatform.googleapis.com/v1beta1/projects/${{ inputs.project_id }}/locations/${{ inputs.region }}/reasoningEngines" \
-          | jq -r ".reasoningEngines[] | select(.displayName == \"${{ inputs.display_name }}\") | .name" \
+          | jq -r "(.reasoningEngines // [])[] | select(.displayName == \"${{ inputs.display_name }}\") | .name" \
           | head -1)
         
         echo "agent_engine_id=${EXISTING_ID}" >> $GITHUB_OUTPUT
