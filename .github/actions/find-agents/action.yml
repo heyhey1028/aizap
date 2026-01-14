@@ -1,0 +1,19 @@
+name: Find Agents
+description: Detect all agent directories under app/adk/agents
+
+outputs:
+  agents:
+    description: JSON array of agent names
+    value: ${{ steps.find.outputs.agents }}
+
+runs:
+  using: composite
+  steps:
+    - id: find
+      shell: bash
+      run: |
+        AGENTS=$(find app/adk/agents -mindepth 1 -maxdepth 1 -type d \
+          ! -name '__pycache__' -exec basename {} \; \
+          | jq -R -s -c 'split("\n") | map(select(length > 0))')
+        echo "agents=${AGENTS}" >> $GITHUB_OUTPUT
+        echo "Found agents: ${AGENTS}"
