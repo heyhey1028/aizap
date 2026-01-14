@@ -1,4 +1,5 @@
-name: CI TypeScript
+# .github/workflows/ci-typescript.yaml
+name: ci for typescript
 
 on:
   pull_request:
@@ -6,10 +7,17 @@ on:
       - 'app/bff/**'
       - '.github/workflows/ci-typescript.yaml'
 
+
 jobs:
   ci:
-    name: Lint, Type Check, Build, Format, Test
+    name: ci
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: app/bff
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,25 +46,19 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        working-directory: app/bff
         run: pnpm install --frozen-lockfile
 
       - name: Check format
-        working-directory: app/bff
         run: pnpm format:check
 
       - name: Run linter
-        working-directory: app/bff
         run: pnpm lint
 
       - name: Type check
-        working-directory: app/bff
         run: pnpm type-check
 
       - name: Build
-        working-directory: app/bff
         run: pnpm build
 
       - name: Run tests
-        working-directory: app/bff
         run: pnpm test
