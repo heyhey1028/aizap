@@ -43,14 +43,13 @@ jobs:
 
       - name: Decide target environment
         id: decide-env
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/infra-v* ]]; then
-            echo "TF_ENV=prod" >> "$GITHUB_ENV"
-          elif [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event_name }}" = "push" ]; then
-            echo "TF_ENV=dev" >> "$GITHUB_ENV"
-          else
-            echo "TF_ENV=${{ github.event.inputs.environment }}" >> "$GITHUB_ENV"
-          fi
+        uses: ./.github/actions/decide-environment
+        with:
+          tag_prefix: "infra-v"
+          input_environment: ${{ github.event.inputs.environment }}
+
+      - name: Set TF_ENV
+        run: echo "TF_ENV=${{ steps.decide-env.outputs.environment }}" >> "$GITHUB_ENV"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -73,20 +72,21 @@ jobs:
         working-directory: infra/${{ env.TF_ENV }}
         run: terraform validate
 
-      - name: Get current Cloud Run images
-        id: current-images
-        run: |
-          BFF_IMAGE=$(gcloud run services describe aizap-bff \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          WORKER_IMAGE=$(gcloud run services describe aizap-worker \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          echo "IMAGE_BFF=${BFF_IMAGE}" >> $GITHUB_OUTPUT
-          echo "IMAGE_WORKER=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
-          echo "Current images: BFF=${BFF_IMAGE}, Worker=${WORKER_IMAGE}"
+      - name: Get current BFF image
+        id: current-bff
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-bff
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Get current Worker image
+        id: current-worker
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-worker
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Terraform Plan (Pre-Apply Check)
         working-directory: infra/${{ env.TF_ENV }}
@@ -95,8 +95,8 @@ jobs:
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
-            -var=image_bff=${{ steps.current-images.outputs.IMAGE_BFF }} \
-            -var=image_worker=${{ steps.current-images.outputs.IMAGE_WORKER }}
+            -var=image_bff=${{ steps.current-bff.outputs.image_uri }} \
+            -var=image_worker=${{ steps.current-worker.outputs.image_uri }}
 
       - name: Terraform Apply
         working-directory: infra/${{ env.TF_ENV }}
@@ -105,23 +105,26 @@ jobs:
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
-            -var=image_bff=${{ steps.current-images.outputs.IMAGE_BFF }} \
-            -var=image_worker=${{ steps.current-images.outputs.IMAGE_WORKER }}
+            -var=image_bff=${{ steps.current-bff.outputs.image_uri }} \
+            -var=image_worker=${{ steps.current-worker.outputs.image_uri }}
 
-      - name: Get current Cloud Run images (for verification)
+      - name: Get BFF image (for verification)
         if: always()
-        id: verify-images
-        run: |
-          BFF_IMAGE=$(gcloud run services describe aizap-bff \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          WORKER_IMAGE=$(gcloud run services describe aizap-worker \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          echo "IMAGE_BFF=${BFF_IMAGE}" >> $GITHUB_OUTPUT
-          echo "IMAGE_WORKER=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
+        id: verify-bff
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-bff
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Get Worker image (for verification)
+        if: always()
+        id: verify-worker
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-worker
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Terraform Plan (Verify No Drift)
         if: always()
@@ -131,5 +134,5 @@ jobs:
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
-            -var=image_bff=${{ steps.verify-images.outputs.IMAGE_BFF }} \
-            -var=image_worker=${{ steps.verify-images.outputs.IMAGE_WORKER }} || exit 0
+            -var=image_bff=${{ steps.verify-bff.outputs.image_uri }} \
+            -var=image_worker=${{ steps.verify-worker.outputs.image_uri }} || exit 0

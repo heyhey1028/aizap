@@ -1,0 +1,110 @@
+# 開発ガイド
+
+## ローカル開発セットアップ
+
+### 前提条件
+
+- Python 3.10〜3.12
+- Google Cloud SDK (`gcloud`)
+- GCP プロジェクトへのアクセス権
+
+### セットアップ
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/heyhey1028/aizap.git
+cd aizap/app/adk
+
+# 仮想環境を作成・有効化
+python -m venv .venv
+source .venv/bin/activate
+
+# ADK をインストール
+pip install google-adk
+
+# GCP 認証
+gcloud auth application-default login
+
+# 環境変数を設定
+export GOOGLE_GENAI_USE_VERTEXAI=1
+export GOOGLE_CLOUD_PROJECT=aizap-dev
+export GOOGLE_CLOUD_LOCATION=asia-northeast1
+```
+
+## ADK コマンド
+
+| コマンド | 説明 | セッション |
+|---------|------|-----------|
+| `adk web` | ブラウザベース開発 UI | InMemorySessionService |
+| `adk run` | ターミナル対話型テスト | InMemorySessionService |
+| `adk api_server` | ローカル REST API サーバー | InMemorySessionService |
+
+### 実行例
+
+```bash
+cd app/adk
+
+# ブラウザで開発 UI を起動
+adk web agents/health_advisor
+# => http://localhost:8000 でアクセス
+
+# ターミナルで対話
+adk run agents/health_advisor
+
+# REST API サーバーを起動
+adk api_server agents/health_advisor
+```
+
+## Agent Engine デプロイ
+
+本番環境では Vertex AI Agent Engine にデプロイします。
+Agent Engine は自動的に VertexAiSessionService を使用してセッションを永続化します。
+
+> **Note**: Agent Engine は Python 3.10〜3.12 のみサポートしています。
+
+### 手動デプロイ（ADK CLI）
+
+```bash
+cd app/adk/agents
+
+# staging_bucket は Terraform で作成済み: gs://${PROJECT_ID}-staging
+adk deploy agent_engine \
+  --project=aizap-dev \
+  --region=asia-northeast1 \
+  --staging_bucket=gs://aizap-dev-staging \
+  --display_name="aizap-health-advisor" \
+  health_advisor
+```
+
+### GitHub Actions からデプロイ（推奨）
+
+1. Actions → **Deploy Agent Engine** → **Run workflow**
+2. environment を選択（dev / prod）
+3. 実行（`app/adk/agents/` 配下の全エージェントが自動デプロイされます）
+
+## Terraform（ローカル実行）
+
+インフラの変更は基本的に **GitHub Actions** で実行します（PR で plan、main push で apply）。
+
+ローカルで plan を確認したい場合：
+
+```bash
+# GCP 認証
+gcloud auth application-default login
+
+cd infra/dev
+
+# 初期化
+terraform init
+
+# プラン確認
+terraform plan \
+  -var=project_id=aizap-dev \
+  -var=region=asia-northeast1 \
+  -var=environment=dev \
+  -var=image_bff=gcr.io/cloudrun/hello \
+  -var=image_worker=gcr.io/cloudrun/hello
+```
+
+> **Note**: `image_*` には現在デプロイ中のイメージを指定してください。
+> GitHub Actions では自動で現在のイメージを取得します。

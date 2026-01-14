@@ -71,43 +71,20 @@ jobs:
 
       - name: Determine deployment environment
         id: env
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/app-v* ]] || [[ "${{ github.event.inputs.environment }}" == "prod" ]]; then
-            echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
-          else
-            echo "ENVIRONMENT=dev" >> $GITHUB_OUTPUT
-          fi
+        uses: ./.github/actions/decide-environment
+        with:
+          tag_prefix: "app-v"
+          input_environment: ${{ github.event.inputs.environment }}
 
       - name: Decide services to deploy
         id: services
-        run: |
-          MANUAL_SERVICES="${{ github.event.inputs.services }}"
-
-          if [ -n "$MANUAL_SERVICES" ]; then
-            # workflow_dispatch で指定されたサービス
-            DEPLOY_BFF=$([[ "$MANUAL_SERVICES" == *"bff"* ]] && echo 'true' || echo 'false')
-            DEPLOY_WORKER=$([[ "$MANUAL_SERVICES" == *"worker"* ]] && echo 'true' || echo 'false')
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "$MANUAL_SERVICES" ]; then
-            # workflow_dispatch で空欄 → 全サービス
-            DEPLOY_BFF=true
-            DEPLOY_WORKER=true
-          elif [[ "$GITHUB_REF" == refs/tags/app-v* ]]; then
-            # タグ → 全サービス
-            DEPLOY_BFF=true
-            DEPLOY_WORKER=true
-          elif [[ "${{ needs.detect-changes.outputs.workflow }}" == "true" ]]; then
-            # ワークフローファイル変更 → 全サービス
-            DEPLOY_BFF=true
-            DEPLOY_WORKER=true
-          else
-            # push → パス検知
-            DEPLOY_BFF=${{ needs.detect-changes.outputs.bff }}
-            DEPLOY_WORKER=${{ needs.detect-changes.outputs.worker }}
-          fi
-
-          echo "DEPLOY_BFF=${DEPLOY_BFF}" >> $GITHUB_OUTPUT
-          echo "DEPLOY_WORKER=${DEPLOY_WORKER}" >> $GITHUB_OUTPUT
-          echo "Deploy targets: BFF=${DEPLOY_BFF}, Worker=${DEPLOY_WORKER}"
+        uses: ./.github/actions/decide-services
+        with:
+          manual_services: ${{ github.event.inputs.services }}
+          tag_prefix: "app-v"
+          workflow_changed: ${{ needs.detect-changes.outputs.workflow }}
+          bff_changed: ${{ needs.detect-changes.outputs.bff }}
+          worker_changed: ${{ needs.detect-changes.outputs.worker }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -125,111 +102,86 @@ jobs:
           gcloud config set project ${{ env.PROJECT_ID }}
           gcloud config set run/region ${{ env.REGION }}
 
-      - name: Get current images (for unchanged services)
-        id: current-images
-        run: |
-          BFF_IMAGE=$(gcloud run services describe aizap-bff \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          WORKER_IMAGE=$(gcloud run services describe aizap-worker \
-            --region=${{ env.REGION }} \
-            --project=${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || echo "gcr.io/cloudrun/hello")
-          echo "CURRENT_BFF=${BFF_IMAGE}" >> $GITHUB_OUTPUT
-          echo "CURRENT_WORKER=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
+      # BFF
+      - name: Get current BFF image
+        id: current-bff
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-bff
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
 
-      - name: Build and push BFF
+      - name: Build BFF
         id: build-bff
+        if: steps.services.outputs.deploy_bff == 'true'
+        uses: ./.github/actions/cloud-build
+        with:
+          source_dir: ./app/bff
+          image_uri: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/bff:${{ github.sha }}
+          region: ${{ env.REGION }}
+
+      - name: Set BFF image
+        id: image-bff
         run: |
-          if [[ "${{ steps.services.outputs.DEPLOY_BFF }}" == "true" ]]; then
-            IMAGE_TAG="${{ github.sha }}"
-            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/bff:${IMAGE_TAG}"
-
-            BUILD_ID=$(gcloud builds submit ./app/bff \
-              --tag="${IMAGE_URI}" \
-              --region=${{ env.REGION }} \
-              --async \
-              --format="value(id)")
-
-            echo "Waiting for BFF build: ${BUILD_ID}"
-            while true; do
-              STATUS=$(gcloud builds describe "${BUILD_ID}" \
-                --region=${{ env.REGION }} \
-                --format="value(status)")
-              echo "Build status: ${STATUS}"
-              if [[ "${STATUS}" == "SUCCESS" ]]; then
-                break
-              elif [[ "${STATUS}" == "FAILURE" || "${STATUS}" == "TIMEOUT" || "${STATUS}" == "CANCELLED" ]]; then
-                echo "Build failed with status: ${STATUS}"
-                exit 1
-              fi
-              sleep 10
-            done
-
-            echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          if [[ "${{ steps.services.outputs.deploy_bff }}" == "true" ]]; then
+            echo "uri=${{ steps.build-bff.outputs.image_uri }}" >> $GITHUB_OUTPUT
           else
-            echo "IMAGE_URI=${{ steps.current-images.outputs.CURRENT_BFF }}" >> $GITHUB_OUTPUT
+            echo "uri=${{ steps.current-bff.outputs.image_uri }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push Worker
+      # Worker
+      - name: Get current Worker image
+        id: current-worker
+        uses: ./.github/actions/get-cloud-run-image
+        with:
+          service_name: aizap-worker
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Build Worker
         id: build-worker
+        if: steps.services.outputs.deploy_worker == 'true'
+        uses: ./.github/actions/cloud-build
+        with:
+          source_dir: ./app/worker
+          image_uri: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/worker:${{ github.sha }}
+          region: ${{ env.REGION }}
+
+      - name: Set Worker image
+        id: image-worker
         run: |
-          if [[ "${{ steps.services.outputs.DEPLOY_WORKER }}" == "true" ]]; then
-            IMAGE_TAG="${{ github.sha }}"
-            IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/aizap-images/worker:${IMAGE_TAG}"
-
-            BUILD_ID=$(gcloud builds submit ./app/worker \
-              --tag="${IMAGE_URI}" \
-              --region=${{ env.REGION }} \
-              --async \
-              --format="value(id)")
-
-            echo "Waiting for Worker build: ${BUILD_ID}"
-            while true; do
-              STATUS=$(gcloud builds describe "${BUILD_ID}" \
-                --region=${{ env.REGION }} \
-                --format="value(status)")
-              echo "Build status: ${STATUS}"
-              if [[ "${STATUS}" == "SUCCESS" ]]; then
-                break
-              elif [[ "${STATUS}" == "FAILURE" || "${STATUS}" == "TIMEOUT" || "${STATUS}" == "CANCELLED" ]]; then
-                echo "Build failed with status: ${STATUS}"
-                exit 1
-              fi
-              sleep 10
-            done
-
-            echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          if [[ "${{ steps.services.outputs.deploy_worker }}" == "true" ]]; then
+            echo "uri=${{ steps.build-worker.outputs.image_uri }}" >> $GITHUB_OUTPUT
           else
-            echo "IMAGE_URI=${{ steps.current-images.outputs.CURRENT_WORKER }}" >> $GITHUB_OUTPUT
+            echo "uri=${{ steps.current-worker.outputs.image_uri }}" >> $GITHUB_OUTPUT
           fi
 
+      # Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~> 1.14"
 
       - name: Terraform Init
-        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
+        working-directory: infra/${{ steps.env.outputs.environment }}
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
+        working-directory: infra/${{ steps.env.outputs.environment }}
         run: |
           terraform plan -no-color -input=false \
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
-            -var=environment=${{ steps.env.outputs.ENVIRONMENT }} \
-            -var=image_bff=${{ steps.build-bff.outputs.IMAGE_URI }} \
-            -var=image_worker=${{ steps.build-worker.outputs.IMAGE_URI }}
+            -var=environment=${{ steps.env.outputs.environment }} \
+            -var=image_bff=${{ steps.image-bff.outputs.uri }} \
+            -var=image_worker=${{ steps.image-worker.outputs.uri }}
 
       - name: Terraform Apply
-        working-directory: infra/${{ steps.env.outputs.ENVIRONMENT }}
+        working-directory: infra/${{ steps.env.outputs.environment }}
         run: |
           terraform apply -auto-approve -input=false \
             -var=project_id=${{ env.PROJECT_ID }} \
             -var=region=${{ env.REGION }} \
-            -var=environment=${{ steps.env.outputs.ENVIRONMENT }} \
-            -var=image_bff=${{ steps.build-bff.outputs.IMAGE_URI }} \
-            -var=image_worker=${{ steps.build-worker.outputs.IMAGE_URI }}
+            -var=environment=${{ steps.env.outputs.environment }} \
+            -var=image_bff=${{ steps.image-bff.outputs.uri }} \
+            -var=image_worker=${{ steps.image-worker.outputs.uri }}
