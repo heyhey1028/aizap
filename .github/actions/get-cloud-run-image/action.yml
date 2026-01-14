@@ -1,0 +1,37 @@
+name: Get Cloud Run Image
+description: Get current image from Cloud Run service
+
+inputs:
+  service_name:
+    description: Cloud Run service name
+    required: true
+  region:
+    description: Cloud Run region
+    required: true
+  project_id:
+    description: GCP project ID
+    required: true
+  fallback_image:
+    description: Fallback image if service doesn't exist
+    default: gcr.io/cloudrun/hello
+
+outputs:
+  image_uri:
+    description: Current image URI
+    value: ${{ steps.get.outputs.image_uri }}
+
+runs:
+  using: composite
+  steps:
+    - id: get
+      shell: bash
+      run: |
+        IMAGE=$(gcloud run services describe ${{ inputs.service_name }} \
+          --region=${{ inputs.region }} \
+          --project=${{ inputs.project_id }} \
+          --format='value(spec.template.spec.containers[0].image)' 2>/dev/null \
+          || echo "${{ inputs.fallback_image }}")
+        if [[ "$IMAGE" == "${{ inputs.fallback_image }}" ]]; then
+          echo "::warning::Service ${{ inputs.service_name }} not found, using fallback image"
+        fi
+        echo "image_uri=${IMAGE}" >> $GITHUB_OUTPUT

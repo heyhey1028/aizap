@@ -1,0 +1,46 @@
+name: Cloud Build
+description: Build and push Docker image using Cloud Build
+
+inputs:
+  source_dir:
+    description: Source directory to build
+    required: true
+  image_uri:
+    description: Full image URI to tag
+    required: true
+  region:
+    description: Cloud Build region
+    required: true
+
+outputs:
+  image_uri:
+    description: Built image URI
+    value: ${{ steps.build.outputs.image_uri }}
+
+runs:
+  using: composite
+  steps:
+    - id: build
+      shell: bash
+      run: |
+        BUILD_ID=$(gcloud builds submit ${{ inputs.source_dir }} \
+          --tag="${{ inputs.image_uri }}" \
+          --region=${{ inputs.region }} \
+          --async \
+          --format="value(id)")
+
+        echo "Waiting for build: ${BUILD_ID}"
+        while true; do
+          STATUS=$(gcloud builds describe "${BUILD_ID}" \
+            --region=${{ inputs.region }} \
+            --format="value(status)")
+          echo "Build status: ${STATUS}"
+          if [[ "${STATUS}" == "SUCCESS" ]]; then
+            break
+          elif [[ "${STATUS}" == "FAILURE" || "${STATUS}" == "TIMEOUT" || "${STATUS}" == "CANCELLED" ]]; then
+            echo "Build failed with status: ${STATUS}"
+            exit 1
+          fi
+          sleep 10
+        done
+        echo "image_uri=${{ inputs.image_uri }}" >> $GITHUB_OUTPUT
