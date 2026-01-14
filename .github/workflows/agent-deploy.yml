@@ -1,6 +1,14 @@
 name: Deploy Agent Engine
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/adk/**"
+      - ".github/workflows/agent-deploy.yml"
+    tags:
+      - "app-v*"
   workflow_dispatch:
     inputs:
       environment:
@@ -24,11 +32,7 @@ jobs:
 
       - name: Find all agents
         id: find-agents
-        run: |
-          # agents/ 配下のディレクトリを検出（__pycache__ を除外）
-          AGENTS=$(find app/adk/agents -mindepth 1 -maxdepth 1 -type d ! -name '__pycache__' -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "agents=${AGENTS}" >> $GITHUB_OUTPUT
-          echo "Found agents: ${AGENTS}"
+        uses: ./.github/actions/find-agents
 
   deploy:
     name: Deploy ${{ matrix.agent }}
@@ -44,7 +48,7 @@ jobs:
         agent: ${{ fromJson(needs.detect-agents.outputs.agents) }}
       fail-fast: false
 
-    environment: ${{ github.event.inputs.environment == 'prod' && 'production' || 'development' }}
+    environment: ${{ (startsWith(github.ref, 'refs/tags/app-v') || github.event.inputs.environment == 'prod') && 'production' || 'development' }}
 
     env:
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
@@ -55,6 +59,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Determine deployment environment
+        id: env
+        uses: ./.github/actions/decide-environment
+        with:
+          tag_prefix: "app-v"
+          input_environment: ${{ github.event.inputs.environment }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -67,7 +78,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"  # Agent Engine は Python 3.10〜3.12 のみサポート
+          python-version: "3.12"
 
       - name: Install ADK
         run: |
@@ -76,7 +87,7 @@ jobs:
       - name: Deploy ${{ matrix.agent }} to Agent Engine
         working-directory: app/adk/agents
         run: |
-          echo "Deploying agent: ${{ matrix.agent }}"
+          echo "Deploying agent: ${{ matrix.agent }} to ${{ steps.env.outputs.environment }}"
 
           adk deploy agent_engine \
             --project=${{ env.PROJECT_ID }} \
