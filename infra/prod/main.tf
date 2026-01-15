@@ -184,7 +184,7 @@ module "cloud_run_bff" {
   env_vars = {
     ENVIRONMENT = var.environment
   }
-  secrets = module.aizap_secrets.cloud_run_secrets
+  secrets               = module.aizap_secrets.cloud_run_secrets
   min_instance_count    = 0
   max_instance_count    = 5
   allow_unauthenticated = true
