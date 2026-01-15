@@ -33,6 +33,7 @@ locals {
     "pubsub.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "secretmanager.googleapis.com",
+    "sqladmin.googleapis.com",
   ]
 }
 
@@ -62,6 +63,8 @@ module "sa_bff" {
   roles = [
     "roles/pubsub.publisher",
     "roles/secretmanager.secretAccessor",
+    "roles/cloudsql.client",
+    "roles/cloudsql.instanceUser",
   ]
 
   depends_on = [google_project_service.apis]
@@ -76,6 +79,8 @@ module "sa_worker" {
   description  = "Worker (Pub/Sub Push)"
   roles = [
     "roles/pubsub.subscriber",
+    "roles/cloudsql.client",
+    "roles/cloudsql.instanceUser",
   ]
 
   depends_on = [google_project_service.apis]
@@ -171,6 +176,28 @@ module "aizap_secrets" {
 }
 
 # -----------------------------------------------------------------------------
+# Cloud SQL (PostgreSQL)
+# -----------------------------------------------------------------------------
+
+module "cloud_sql" {
+  source = "../modules/cloud_sql"
+
+  project_id          = var.project_id
+  region              = var.region
+  instance_name       = "aizap-postgres-dev"
+  database_name       = "aizap"
+  availability_type   = "ZONAL"
+  deletion_protection = false
+  retained_backups    = 7
+  iam_users = [
+    module.sa_bff.account_id,
+    module.sa_worker.account_id,
+  ]
+
+  depends_on = [google_project_service.apis, module.sa_bff, module.sa_worker]
+}
+
+# -----------------------------------------------------------------------------
 # Cloud Run Services
 # -----------------------------------------------------------------------------
 
@@ -183,17 +210,20 @@ module "cloud_run_bff" {
   image                 = var.image_bff
   service_account_email = module.sa_bff.email
   env_vars = {
-    ENVIRONMENT = var.environment
+    ENVIRONMENT  = var.environment
+    DATABASE_URL = "postgresql://${module.sa_bff.account_id}@${var.project_id}.iam@localhost:5432/${module.cloud_sql.database_name}"
   }
-  secrets               = module.aizap_secrets.cloud_run_secrets
-  min_instance_count    = 0
-  max_instance_count    = 1
-  allow_unauthenticated = true
+  secrets                   = module.aizap_secrets.cloud_run_secrets
+  min_instance_count        = 0
+  max_instance_count        = 1
+  allow_unauthenticated     = true
+  cloud_sql_connection_name = module.cloud_sql.connection_name
 
   depends_on = [
     google_project_service.apis,
     module.sa_bff,
     module.aizap_secrets,
+    module.cloud_sql,
   ]
 }
 
@@ -206,13 +236,15 @@ module "cloud_run_worker" {
   image                 = var.image_worker
   service_account_email = module.sa_worker.email
   env_vars = {
-    ENVIRONMENT = var.environment
+    ENVIRONMENT  = var.environment
+    DATABASE_URL = "postgresql://${module.sa_worker.account_id}@${var.project_id}.iam@localhost:5432/${module.cloud_sql.database_name}"
   }
-  min_instance_count    = 0
-  max_instance_count    = 1
-  allow_unauthenticated = false
+  min_instance_count        = 0
+  max_instance_count        = 1
+  allow_unauthenticated     = false
+  cloud_sql_connection_name = module.cloud_sql.connection_name
 
-  depends_on = [google_project_service.apis, module.sa_worker]
+  depends_on = [google_project_service.apis, module.sa_worker, module.cloud_sql]
 }
 
 # -----------------------------------------------------------------------------

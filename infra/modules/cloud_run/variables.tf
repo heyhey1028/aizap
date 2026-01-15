@@ -52,3 +52,8 @@ variable "secrets" {
   type        = map(string)
   default     = {}
 }
+
+variable "cloud_sql_connection_name" {
+  description = "Cloud SQL インスタンスの接続名（例: project:region:instance）"
+  type        = string
+}

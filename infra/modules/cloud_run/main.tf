@@ -19,6 +19,7 @@ resource "google_cloud_run_v2_service" "this" {
     }
 
     containers {
+      name  = "app"
       image = var.image
 
       dynamic "env" {
@@ -46,6 +47,25 @@ resource "google_cloud_run_v2_service" "this" {
         limits = {
           cpu    = "1"
           memory = "512Mi"
+        }
+      }
+    }
+
+    # Cloud SQL Auth Proxy sidecar
+    containers {
+      name  = "cloud-sql-proxy"
+      image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.20.0"
+
+      args = [
+        "--port=5432",
+        "--auto-iam-authn",
+        var.cloud_sql_connection_name,
+      ]
+
+      resources {
+        limits = {
+          cpu    = "0.5"
+          memory = "256Mi"
         }
       }
     }
