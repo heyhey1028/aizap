@@ -218,6 +218,7 @@ module "cloud_run_bff" {
   max_instance_count        = 1
   allow_unauthenticated     = true
   cloud_sql_connection_name = module.cloud_sql.connection_name
+  health_check_path         = "/healthz"
 
   depends_on = [
     google_project_service.apis,

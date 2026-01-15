@@ -49,6 +49,36 @@ resource "google_cloud_run_v2_service" "this" {
           memory = "512Mi"
         }
       }
+
+      dynamic "startup_probe" {
+        for_each = var.health_check_path != null ? [1] : []
+        content {
+          initial_delay_seconds = 0
+          period_seconds        = 3
+          timeout_seconds       = 1
+          failure_threshold     = 3
+
+          http_get {
+            path = var.health_check_path
+            port = 8080
+          }
+        }
+      }
+
+      dynamic "liveness_probe" {
+        for_each = var.health_check_path != null ? [1] : []
+        content {
+          initial_delay_seconds = 0
+          period_seconds        = 10
+          timeout_seconds       = 1
+          failure_threshold     = 3
+
+          http_get {
+            path = var.health_check_path
+            port = 8080
+          }
+        }
+      }
     }
 
     # Cloud SQL Auth Proxy sidecar
