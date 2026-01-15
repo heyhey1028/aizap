@@ -46,3 +46,9 @@ variable "allow_unauthenticated" {
   description = "未認証アクセスを許可するかどうか"
   type        = bool
 }
+
+variable "secrets" {
+  description = "環境変数名をキー、シークレット名を値とする map（例: { LINE_CHANNEL_SECRET = \"LINE_CHANNEL_SECRET\" }）"
+  type        = map(string)
+  default     = {}
+}

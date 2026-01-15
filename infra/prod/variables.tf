@@ -27,3 +27,14 @@ variable "image_worker" {
   type        = string
 }
 
+variable "line_channel_secret" {
+  description = "LINE Channel Secret の値"
+  type        = string
+  sensitive   = true
+}
+
+variable "line_channel_access_token" {
+  description = "LINE Channel Access Token の値"
+  type        = string
+  sensitive   = true
+}
