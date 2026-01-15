@@ -189,6 +189,7 @@ module "cloud_run_bff" {
   min_instance_count    = 0
   max_instance_count    = 1
   allow_unauthenticated = true
+  health_check_path     = "/healthz"
 
   depends_on = [
     google_project_service.apis,

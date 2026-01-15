@@ -52,3 +52,9 @@ variable "secrets" {
   type        = map(string)
   default     = {}
 }
+
+variable "health_check_path" {
+  description = "Health check のパス（例: \"/healthz\"）。指定されない場合は health check を無効化"
+  type        = string
+  default     = null
+}
