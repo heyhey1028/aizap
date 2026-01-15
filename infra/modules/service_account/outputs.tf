@@ -26,3 +26,8 @@ output "member" {
   description = "サービスアカウントの Identity（serviceAccount:{email} 形式）"
   value       = google_service_account.this.member
 }
+
+output "account_id" {
+  description = "サービスアカウントの account_id"
+  value       = google_service_account.this.account_id
+}
