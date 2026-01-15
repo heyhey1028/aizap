@@ -32,6 +32,7 @@ locals {
     "aiplatform.googleapis.com",
     "pubsub.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "secretmanager.googleapis.com",
   ]
 }
 
@@ -60,6 +61,7 @@ module "sa_bff" {
   description  = "BFF (Webhook/LIFF)"
   roles = [
     "roles/pubsub.publisher",
+    "roles/secretmanager.secretAccessor",
   ]
 
   depends_on = [google_project_service.apis]
@@ -156,6 +158,18 @@ resource "google_artifact_registry_repository" "images" {
 }
 
 # -----------------------------------------------------------------------------
+# Secret Manager
+# -----------------------------------------------------------------------------
+
+module "aizap_secrets" {
+  source = "../modules/secret_manager"
+
+  project_id = var.project_id
+
+  depends_on = [google_project_service.apis]
+}
+
+# -----------------------------------------------------------------------------
 # Cloud Run Services
 # -----------------------------------------------------------------------------
 
@@ -170,11 +184,16 @@ module "cloud_run_bff" {
   env_vars = {
     ENVIRONMENT = var.environment
   }
+  secrets               = module.aizap_secrets.cloud_run_secrets
   min_instance_count    = 0
   max_instance_count    = 1
   allow_unauthenticated = true
 
-  depends_on = [google_project_service.apis, module.sa_bff]
+  depends_on = [
+    google_project_service.apis,
+    module.sa_bff,
+    module.aizap_secrets,
+  ]
 }
 
 module "cloud_run_worker" {

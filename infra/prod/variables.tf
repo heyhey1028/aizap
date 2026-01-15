@@ -26,4 +26,3 @@ variable "image_worker" {
   description = "aizap-worker のコンテナイメージ URI"
   type        = string
 }
-
