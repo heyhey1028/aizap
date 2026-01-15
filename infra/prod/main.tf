@@ -101,6 +101,7 @@ module "sa_github_actions" {
     "roles/serviceusage.serviceUsageAdmin",
     "roles/storage.admin",
     "roles/aiplatform.admin",
+    "roles/secretmanager.admin",
   ]
 
   depends_on = [google_project_service.apis]
