@@ -45,6 +45,26 @@ pnpm dev
 | ------ | -------------------- | ---------- |
 | `PORT` | サーバーのポート番号 | `8080`     |
 
+### シークレット管理
+
+LINE Bot のシークレットは Google Cloud Secret Manager で管理します。
+
+```bash
+# dev
+export PROJECT_ID="aizap-dev"
+
+# prod
+export PROJECT_ID="aizap-prod"
+
+# シークレットを保存
+echo -n "シークレット値" | gcloud secrets versions add "LINE_CHANNEL_SECRET" --data-file=- --project=${PROJECT_ID}
+echo -n "アクセストークン値" | gcloud secrets versions add "LINE_CHANNEL_ACCESS_TOKEN" --data-file=- --project=${PROJECT_ID}
+
+# シークレットを取得
+gcloud secrets versions access latest --secret="LINE_CHANNEL_SECRET" --project=${PROJECT_ID}
+gcloud secrets versions access latest --secret="LINE_CHANNEL_ACCESS_TOKEN" --project=${PROJECT_ID}
+```
+
 ## ビルド
 
 ```bash
