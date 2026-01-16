@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import api from '@/apis/app';
-import web from '@/pages/app';
+import api from '@/apis/app.js';
+import web from '@/pages/app.js';
 
 export const app = new Hono();
 const port = Number(process.env.PORT) || 8080;

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-const api = new Hono();
+
+const api: Hono = new Hono();
 
 api.get('/hello', (c) => {
   return c.json({ status: 'hellow world!' });
