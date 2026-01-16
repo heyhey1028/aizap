@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
+    "module": "nodenext",
     "lib": ["ES2022", "DOM"],
-    "moduleResolution": "bundler",
+    "moduleResolution": "nodenext",
+    "baseUrl": ".",
     "resolveJsonModule": true,
     "allowJs": false,
     "checkJs": false,
