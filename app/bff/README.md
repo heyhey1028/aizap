@@ -41,9 +41,38 @@ pnpm dev
 
 ### 環境変数
 
-| 変数名 | 説明                 | デフォルト |
-| ------ | -------------------- | ---------- |
-| `PORT` | サーバーのポート番号 | `8080`     |
+#### ローカル開発環境での設定
+
+ローカル開発環境では、`.env`ファイルを使用して環境変数を設定できます。`pnpm dev`を実行すると、自動的に`.env`ファイルから環境変数を読み込みます。
+
+1. `.env.example`をコピーして`.env`ファイルを作成：
+
+```bash
+cp .env.example .env
+```
+
+2. `.env`ファイルを編集して、LINE 開発者コンソールから取得した値を設定：
+
+```bash
+LINE_CHANNEL_SECRET=your_channel_secret_here
+LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
+```
+
+3. LINE 開発者コンソールで値を取得：
+   - [LINE 開発者コンソール](https://developers.line.biz/console/)にアクセス
+   - プロバイダーとチャネルを選択
+   - 「Messaging API」タブから「Channel secret」をコピー
+   - 「Messaging API」タブから「Channel access token」をコピー（または発行）
+
+#### 環境変数一覧
+
+| 変数名                      | 説明                          | 必須   | デフォルト |
+| --------------------------- | ----------------------------- | ------ | ---------- |
+| `LINE_CHANNEL_SECRET`       | LINE チャネルシークレット     | はい   | -          |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE チャネルアクセストークン | はい   | -          |
+| `PORT`                      | サーバーのポート番号          | いいえ | `8080`     |
+
+> **注意**: 本番環境や`pnpm start`では、`.env`ファイルは使用されません。環境変数を直接設定してください。
 
 ### シークレット管理
 
