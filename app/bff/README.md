@@ -14,68 +14,78 @@ aizap-bff は LINE Bot の Webhook を受信し、LIFF アプリケーション�
 - **パッケージマネージャー**: pnpm 9+
 - **LINE SDK**: [@line/bot-sdk](https://github.com/line/line-bot-sdk-nodejs)
 
-## セットアップ
+## Get Started
 
-### 前提条件
-
-- Node.js 22.0.0 以上
-- pnpm 9.0.0 以上
-
-### インストール
+1. 依存関係のインストール
 
 ```bash
+cd /path/to/app/bff
 corepack enable
-# 依存関係をインストール
 pnpm install
 ```
 
-## 開発
-
-### ローカル開発サーバー起動
-
-```bash
-# 開発モード（ホットリロード対応）
-pnpm dev
-```
-
-サーバーは `http://localhost:8080` で起動します。
-
-### 環境変数
-
-#### ローカル開発環境での設定
-
-ローカル開発環境では、`.env`ファイルを使用して環境変数を設定できます。`pnpm dev`を実行すると、自動的に`.env`ファイルから環境変数を読み込みます。
-
-1. `.env.example`をコピーして`.env`ファイルを作成：
+2. `.env.example`をコピーして`.env`ファイルを作成：
 
 ```bash
 cp .env.example .env
 ```
 
-2. `.env`ファイルを編集して、LINE 開発者コンソールから取得した値を設定：
+3. `.env`ファイルを編集して以下を設定する
 
 ```bash
 LINE_CHANNEL_SECRET=your_channel_secret_here
 LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
 ```
 
-3. LINE 開発者コンソールで値を取得：
-   - [LINE 開発者コンソール](https://developers.line.biz/console/)にアクセス
-   - プロバイダーとチャネルを選択
-   - 「Messaging API」タブから「Channel secret」をコピー
-   - 「Messaging API」タブから「Channel access token」をコピー（または発行）
+- aizap_devのチャネルにつなげる場合
 
-#### 環境変数一覧
+```bash
+gcloud auth login
+gcloud secrets versions access latest --secret="LINE_CHANNEL_SECRET" --project="aizap-dev"
+gcloud secrets versions access latest --secret="LINE_CHANNEL_ACCESS_TOKEN" --project="aizap-dev"
+```
 
-| 変数名                      | 説明                          | 必須   | デフォルト |
-| --------------------------- | ----------------------------- | ------ | ---------- |
-| `LINE_CHANNEL_SECRET`       | LINE チャネルシークレット     | はい   | -          |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE チャネルアクセストークン | はい   | -          |
-| `PORT`                      | サーバーのポート番号          | いいえ | `8080`     |
+- 自身の作成したチャネルにつなげる場合
+  - [LINE 開発者コンソール](https://developers.line.biz/console/)にアクセス
+  - プロバイダーとチャネルを選択
+  - 「Messaging API」タブから「Channel secret」をコピー
+  - 「Messaging API」タブから「Channel access token」をコピー（または発行）
 
-> **注意**: 本番環境や`pnpm start`では、`.env`ファイルは使用されません。環境変数を直接設定してください。
+4. 開発サーバーを起動
 
-### シークレット管理
+```bash
+# 開発モード（ホットリロード対応）
+pnpm dev
+```
+
+5. ngrok を使用して接続
+
+- [ngrok](https://ngrok.com/) をインストール
+
+```bash
+brew install ngrok
+```
+
+- [アカウントを作成](https://dashboard.ngrok.com/signup)して認証トークンを設定
+- dashboardにてトークンを入手し認証する
+
+```bash
+ngrok config add-authtoken <your auth token>
+```
+
+- 別のターミナルで ngrok を起動
+
+```bash
+ngrok http 8080
+```
+
+- ngrok が表示する HTTPS URL（例: `https://xxxx-xxxx-xxxx.ngrok-free.app`）をコピー
+
+- LINE 開発者コンソールで Webhook URL を設定:
+  - URL: `https://xxxx-xxxx-xxxx.ngrok-free.app/api/webhook`
+  - Webhook の利用を有効化
+
+## シークレット管理
 
 LINE Bot のシークレットは Google Cloud Secret Manager で管理します。
 
@@ -95,25 +105,16 @@ gcloud secrets versions access latest --secret="LINE_CHANNEL_SECRET" --project=$
 gcloud secrets versions access latest --secret="LINE_CHANNEL_ACCESS_TOKEN" --project=${PROJECT_ID}
 ```
 
-## ビルド
+## Others
+
+- ビルド
 
 ```bash
 # TypeScript をコンパイル
 pnpm build
 ```
 
-ビルド結果は `dist/` ディレクトリに出力されます。
-
-## 実行
-
-```bash
-# ビルド済みのアプリケーションを起動
-pnpm start
-```
-
-## コード品質
-
-### Lint
+- Lint
 
 ```bash
 # ESLint でコードをチェック
@@ -123,7 +124,7 @@ pnpm lint
 pnpm lint:fix
 ```
 
-### フォーマット
+- format
 
 ```bash
 # Prettier でコードをフォーマット
@@ -133,53 +134,12 @@ pnpm format
 pnpm format:check
 ```
 
-### 型チェック
+- typeチェック
 
 ```bash
 # TypeScript の型チェックのみ実行（ビルドしない）
 pnpm type-check
 ```
-
-## エンドポイント
-
-### Webhook
-
-LINE Bot の Webhook を受信するエンドポイントです。
-
-- **URL**: `POST /api/webhook`
-- **説明**: LINE プラットフォームから送信されるイベント（メッセージ、フォローなど）を受信します。
-- **レスポンス**:
-  - 成功時: `200 OK` を返却
-  - エラー時: `500 Internal Server Error` を返却
-
-### ローカル開発での Webhook テスト
-
-ローカル開発環境で LINE Webhook をテストするには、ローカルサーバーを外部に公開する必要があります。
-
-#### ngrok を使用する場合
-
-1. [ngrok](https://ngrok.com/) をインストール
-2. アカウントを作成して認証トークンを設定
-3. サーバーを起動:
-   ```bash
-   pnpm dev
-   ```
-4. 別のターミナルで ngrok を起動:
-   ```bash
-   ngrok http 8080
-   ```
-5. ngrok が表示する HTTPS URL（例: `https://xxxx-xxxx-xxxx.ngrok-free.app`）をコピー
-6. LINE 開発者コンソールで Webhook URL を設定:
-   - URL: `https://xxxx-xxxx-xxxx.ngrok-free.app/api/webhook`
-   - Webhook の利用を有効化
-
-#### テスト手順
-
-1. ローカルサーバーを起動（`pnpm dev`）
-2. トンネルツールで外部公開
-3. LINE 開発者コンソールで Webhook URL を設定
-4. LINE アプリからメッセージを送信
-5. サーバーのログで受信内容を確認
 
 ## Docker
 
