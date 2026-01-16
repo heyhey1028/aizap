@@ -112,15 +112,7 @@ pnpm type-check
 
 ## エンドポイント
 
-### `GET /`
-
-Hello World を返す（動作確認用）
-
-**レスポンス:**
-
-```
-Hello, World!
-```
+TBD
 
 ## Docker
 
