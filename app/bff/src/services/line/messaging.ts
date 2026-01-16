@@ -15,6 +15,6 @@ export async function echoTextMessage(
 
   await client.replyMessage(replyToken, {
     type: 'text',
-    text,
+    text: `reply: ${text}`,
   });
 }
