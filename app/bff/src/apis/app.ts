@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { WebhookRequestBody } from '@line/bot-sdk';
 import { validateWebhookSignature } from '@/utils/signature.js';
 import { processWebhookEvents } from '@/services/line/webhook.js';
+import { logger } from '@/utils/logger.js';
 
 const api: Hono = new Hono();
 
@@ -28,10 +29,10 @@ api.post('/webhook', async (c) => {
     // パースしてイベントを処理
     const body = JSON.parse(rawBody) as WebhookRequestBody;
     await processWebhookEvents(body);
-    console.log('Webhook received and processed successfully');
+    logger.info('Webhook received and processed successfully');
     return c.json({ status: 'ok' }, 200);
   } catch (error) {
-    console.error('Webhook error:', error);
+    logger.error({ err: error }, 'Webhook error');
     return c.json({ error: 'Internal Server Error' }, 500);
   }
 });

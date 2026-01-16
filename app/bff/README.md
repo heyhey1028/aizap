@@ -24,6 +24,7 @@ aizap-bff は LINE Bot の Webhook を受信し、LIFF アプリケーション�
 ### インストール
 
 ```bash
+corepack enable
 # 依存関係をインストール
 pnpm install
 ```

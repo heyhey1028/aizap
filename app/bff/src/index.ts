@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import api from '@/apis/app.js';
 import web from '@/pages/app.js';
+import { logger } from '@/utils/logger.js';
 
 export const app = new Hono();
 const port = Number(process.env.PORT) || 8080;
@@ -27,13 +28,13 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   server.close((err) => {
     if (err) {
-      console.error(err);
+      logger.error(err, 'Error during graceful shutdown');
       process.exit(1);
     }
     process.exit(0);
   });
 });
 
-console.log(`Server is running on port ${port}`);
+logger.info({ port }, 'Server is running');
 
 export default app;

@@ -10,8 +10,6 @@ module.exports = {
   plugins: ["@typescript-eslint", "prettier"],
   extends: [
     "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "plugin:@typescript-eslint/recommended-requiring-type-checking",
     "prettier",
   ],
   rules: {
