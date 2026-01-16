@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { WebhookRequestBody } from '@line/bot-sdk';
+import type { WebhookRequestBody, TextMessage } from '@line/bot-sdk';
 import { validateWebhookSignature } from '@/services/line/signature.js';
 import { logger } from '@/utils/logger.js';
 import { getLineClient } from '@/clients/line.js';
@@ -39,9 +39,13 @@ api.post('/webhook', async (c) => {
         if (event.message.type !== 'text') {
           return;
         }
-        client.replyMessage(event.replyToken, {
+        const echo: TextMessage = {
           type: 'text',
           text: `reply: ${event.message.text}`,
+        };
+        client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [echo],
         });
       })
     );
