@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import api from '@/apis/app.js';
+import api from '@/apis/webhook.js';
 import web from '@/pages/app.js';
 import { logger } from '@/utils/logger.js';
 import { accessLog } from '@/middleware/accessLog.js';
