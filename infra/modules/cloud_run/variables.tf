@@ -53,6 +53,11 @@ variable "secrets" {
   default     = {}
 }
 
+variable "cloud_sql_connection_name" {
+  description = "Cloud SQL インスタンスの接続名（例: project:region:instance）"
+  type        = string
+}
+
 variable "health_check_path" {
   description = "Health check のパス（例: \"/healthz\"）。指定されない場合は health check を無効化"
   type        = string
