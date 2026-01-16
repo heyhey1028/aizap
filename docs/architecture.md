@@ -17,10 +17,6 @@ flowchart LR
         LINEServer["LINE サーバー"]
     end
 
-    subgraph Firebase["Firebase"]
-        Hosting["Firebase Hosting"]
-    end
-
     subgraph GCP["GCP Project"]
         subgraph CloudRunBFF["Cloud Run: aizap-bff"]
             BFF["aizap-bff"]
@@ -31,6 +27,10 @@ flowchart LR
         end
 
         PubSub["Pub/Sub"]
+
+        subgraph CloudSQL["Cloud SQL"]
+            PostgreSQL["PostgreSQL"]
+        end
 
         subgraph VertexAI["Vertex AI"]
             AgentEngine["Agent Engine"]
@@ -51,12 +51,11 @@ flowchart LR
     Worker -->|"reply/push"| LINEServer
 
     %% LIFF flow (sync)
-    LINEApp -->|"LIFF URL"| Hosting
-    Hosting -->|"rewrite: /api/*"| BFF
-    BFF -->|"SDK"| AgentEngine
+    LINEApp -->|"LIFF URL"| BFF
 
-    %% SSE direct (CORS required)
-    Hosting -.->|"SSE direct"| BFF
+    %% Database connections
+    BFF --> PostgreSQL
+    Worker --> PostgreSQL
 
     %% Agent Engine dependencies
     AgentEngine --> FitBit
@@ -65,14 +64,15 @@ flowchart LR
 
 ## コンポーネント
 
-| コンポーネント | 説明 |
-|---------------|------|
-| **aizap-bff** | LINE Webhook 受信、LIFF API エンドポイント |
-| **aizap-worker** | Pub/Sub Push 受信、Agent Engine 呼び出し、LINE 返信 |
-| **Agent Engine** | ADK エージェント（`app/adk/agents/` 配下を自動デプロイ） |
-| **Cloud Pub/Sub** | Webhook 非同期処理（LINE 2秒タイムアウト対策） |
-| **Artifact Registry** | コンテナイメージ保存 |
-| **Workload Identity** | GitHub Actions → GCP 認証 |
+| コンポーネント        | 説明                                                     |
+| --------------------- | -------------------------------------------------------- |
+| **aizap-bff**         | LINE Webhook 受信、LIFF ホスト・API エンドポイント       |
+| **aizap-worker**      | Pub/Sub Push、Agent Engine 呼び出し、LINE 返信           |
+| **Agent Engine**      | ADK エージェント（`app/adk/agents/` 配下を自動デプロイ） |
+| **Cloud SQL**         | PostgreSQL データベース（bff と worker から接続）        |
+| **Cloud Pub/Sub**     | Webhook 非同期処理（LINE 2 秒タイムアウト対策）          |
+| **Artifact Registry** | コンテナイメージ保存                                     |
+| **Workload Identity** | GitHub Actions → GCP 認証                                |
 
 ## エージェント構成
 
@@ -93,7 +93,7 @@ root_agent (gemini-2.5-flash)
 
 ## 環境
 
-| 環境 | GCP プロジェクト | 用途 |
-|-----|-----------------|------|
-| dev | [aizap-dev](https://console.cloud.google.com/welcome?project=aizap-dev) | 開発・テスト |
-| prod | [aizap-prod](https://console.cloud.google.com/welcome?project=aizap-prod) | 本番 |
+| 環境 | GCP プロジェクト                                                          | 用途         |
+| ---- | ------------------------------------------------------------------------- | ------------ |
+| dev  | [aizap-dev](https://console.cloud.google.com/welcome?project=aizap-dev)   | 開発・テスト |
+| prod | [aizap-prod](https://console.cloud.google.com/welcome?project=aizap-prod) | 本番         |

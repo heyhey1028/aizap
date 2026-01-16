@@ -14,38 +14,78 @@ aizap-bff は LINE Bot の Webhook を受信し、LIFF アプリケーション�
 - **パッケージマネージャー**: pnpm 9+
 - **LINE SDK**: [@line/bot-sdk](https://github.com/line/line-bot-sdk-nodejs)
 
-## セットアップ
+## Get Started
 
-### 前提条件
-
-- Node.js 22.0.0 以上
-- pnpm 9.0.0 以上
-
-### インストール
+1. 依存関係のインストール
 
 ```bash
-# 依存関係をインストール
+cd /path/to/app/bff
+corepack enable
 pnpm install
 ```
 
-## 開発
+2. `.env.example`をコピーして`.env`ファイルを作成：
 
-### ローカル開発サーバー起動
+```bash
+cp .env.example .env
+```
+
+3. `.env`ファイルを編集して以下を設定する
+
+```bash
+LINE_CHANNEL_SECRET=your_channel_secret_here
+LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
+```
+
+- aizap_devのチャネルにつなげる場合
+
+```bash
+gcloud auth login
+gcloud secrets versions access latest --secret="LINE_CHANNEL_SECRET" --project="aizap-dev"
+gcloud secrets versions access latest --secret="LINE_CHANNEL_ACCESS_TOKEN" --project="aizap-dev"
+```
+
+- 自身の作成したチャネルにつなげる場合
+  - [LINE 開発者コンソール](https://developers.line.biz/console/)にアクセス
+  - プロバイダーとチャネルを選択
+  - 「Messaging API」タブから「Channel secret」をコピー
+  - 「Messaging API」タブから「Channel access token」をコピー（または発行）
+
+4. 開発サーバーを起動
 
 ```bash
 # 開発モード（ホットリロード対応）
 pnpm dev
 ```
 
-サーバーは `http://localhost:8080` で起動します。
+5. ngrok を使用して接続
 
-### 環境変数
+- [ngrok](https://ngrok.com/) をインストール
 
-| 変数名 | 説明                 | デフォルト |
-| ------ | -------------------- | ---------- |
-| `PORT` | サーバーのポート番号 | `8080`     |
+```bash
+brew install ngrok
+```
 
-### シークレット管理
+- [アカウントを作成](https://dashboard.ngrok.com/signup)して認証トークンを設定
+- dashboardにてトークンを入手し認証する
+
+```bash
+ngrok config add-authtoken <your auth token>
+```
+
+- 別のターミナルで ngrok を起動
+
+```bash
+ngrok http 8080
+```
+
+- ngrok が表示する HTTPS URL（例: `https://xxxx-xxxx-xxxx.ngrok-free.app`）をコピー
+
+- LINE 開発者コンソールで Webhook URL を設定:
+  - URL: `https://xxxx-xxxx-xxxx.ngrok-free.app/api/webhook`
+  - Webhook の利用を有効化
+
+## シークレット管理
 
 LINE Bot のシークレットは Google Cloud Secret Manager で管理します。
 
@@ -65,25 +105,16 @@ gcloud secrets versions access latest --secret="LINE_CHANNEL_SECRET" --project=$
 gcloud secrets versions access latest --secret="LINE_CHANNEL_ACCESS_TOKEN" --project=${PROJECT_ID}
 ```
 
-## ビルド
+## Others
+
+- ビルド
 
 ```bash
 # TypeScript をコンパイル
 pnpm build
 ```
 
-ビルド結果は `dist/` ディレクトリに出力されます。
-
-## 実行
-
-```bash
-# ビルド済みのアプリケーションを起動
-pnpm start
-```
-
-## コード品質
-
-### Lint
+- Lint
 
 ```bash
 # ESLint でコードをチェック
@@ -93,7 +124,7 @@ pnpm lint
 pnpm lint:fix
 ```
 
-### フォーマット
+- format
 
 ```bash
 # Prettier でコードをフォーマット
@@ -103,16 +134,12 @@ pnpm format
 pnpm format:check
 ```
 
-### 型チェック
+- typeチェック
 
 ```bash
 # TypeScript の型チェックのみ実行（ビルドしない）
 pnpm type-check
 ```
-
-## エンドポイント
-
-TBD
 
 ## Docker
 

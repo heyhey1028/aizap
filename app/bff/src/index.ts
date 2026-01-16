@@ -1,11 +1,14 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import api from '@/apis/app.js';
+import api from '@/apis/webhook.js';
 import web from '@/pages/app.js';
+import { logger } from '@/utils/logger.js';
+import { accessLog } from '@/middleware/accessLog.js';
 
 export const app = new Hono();
 const port = Number(process.env.PORT) || 8080;
 
+app.use(accessLog);
 app.get('/healthz', (c) => {
   return c.json({ status: 'ok' });
 });
@@ -21,19 +24,24 @@ const server = serve({
 
 // graceful shutdown
 process.on('SIGINT', () => {
-  server.close();
+  server.close((err) => {
+    if (err) {
+      logger.error({ err }, 'Error during graceful shutdown');
+      process.exit(1);
+    }
+  });
   process.exit(0);
 });
 process.on('SIGTERM', () => {
   server.close((err) => {
     if (err) {
-      console.error(err);
+      logger.error({ err }, 'Error during graceful shutdown');
       process.exit(1);
     }
     process.exit(0);
   });
 });
 
-console.log(`Server is running on port ${port}`);
+logger.info({ port }, 'Server is running');
 
 export default app;
