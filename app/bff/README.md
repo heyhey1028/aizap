@@ -112,7 +112,44 @@ pnpm type-check
 
 ## エンドポイント
 
-TBD
+### Webhook
+
+LINE Bot の Webhook を受信するエンドポイントです。
+
+- **URL**: `POST /api/webhook`
+- **説明**: LINE プラットフォームから送信されるイベント（メッセージ、フォローなど）を受信します。
+- **レスポンス**:
+  - 成功時: `200 OK` を返却
+  - エラー時: `500 Internal Server Error` を返却
+
+### ローカル開発での Webhook テスト
+
+ローカル開発環境で LINE Webhook をテストするには、ローカルサーバーを外部に公開する必要があります。
+
+#### ngrok を使用する場合
+
+1. [ngrok](https://ngrok.com/) をインストール
+2. アカウントを作成して認証トークンを設定
+3. サーバーを起動:
+   ```bash
+   pnpm dev
+   ```
+4. 別のターミナルで ngrok を起動:
+   ```bash
+   ngrok http 8080
+   ```
+5. ngrok が表示する HTTPS URL（例: `https://xxxx-xxxx-xxxx.ngrok-free.app`）をコピー
+6. LINE 開発者コンソールで Webhook URL を設定:
+   - URL: `https://xxxx-xxxx-xxxx.ngrok-free.app/api/webhook`
+   - Webhook の利用を有効化
+
+#### テスト手順
+
+1. ローカルサーバーを起動（`pnpm dev`）
+2. トンネルツールで外部公開
+3. LINE 開発者コンソールで Webhook URL を設定
+4. LINE アプリからメッセージを送信
+5. サーバーのログで受信内容を確認
 
 ## Docker
 
