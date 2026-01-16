@@ -6,10 +6,6 @@ import { logger } from '@/utils/logger.js';
 
 const api: Hono = new Hono();
 
-api.get('/hello', (c) => {
-  return c.json({ status: 'hellow world!' });
-});
-
 api.post('/webhook', async (c) => {
   try {
     // 署名検証のため、生のボディを文字列として取得
@@ -26,6 +22,7 @@ api.post('/webhook', async (c) => {
       return c.json({ error: 'Invalid signature' }, 400);
     }
 
+    // TODO:仮実装
     // パースしてイベントを処理
     const body = JSON.parse(rawBody) as WebhookRequestBody;
     await processWebhookEvents(body);
