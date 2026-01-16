@@ -46,7 +46,7 @@ flowchart LR
     LINEApp --> LINEServer
     LINEServer -->|"Webhook"| BFF
     BFF -->|"Publish"| PubSub
-    PubSub -->|"Subscribe"| Worker
+    PubSub -->|"Push"| Worker
     Worker -->|"SDK"| AgentEngine
     Worker -->|"reply/push"| LINEServer
 
@@ -67,7 +67,7 @@ flowchart LR
 | コンポーネント        | 説明                                                     |
 | --------------------- | -------------------------------------------------------- |
 | **aizap-bff**         | LINE Webhook 受信、LIFF ホスト・API エンドポイント       |
-| **aizap-worker**      | Pub/Sub Subscribe、Agent Engine 呼び出し、LINE 返信      |
+| **aizap-worker**      | Pub/Sub Push、Agent Engine 呼び出し、LINE 返信           |
 | **Agent Engine**      | ADK エージェント（`app/adk/agents/` 配下を自動デプロイ） |
 | **Cloud SQL**         | PostgreSQL データベース（bff と worker から接続）        |
 | **Cloud Pub/Sub**     | Webhook 非同期処理（LINE 2 秒タイムアウト対策）          |
