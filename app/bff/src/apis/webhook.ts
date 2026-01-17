@@ -8,23 +8,41 @@ import type { WebhookMessage } from '@/types/index.js';
 
 const api: Hono = new Hono();
 
-// TODO: 画像や動画メッセージにも対応する（GCSアップロード等）
 const handleEvent = async (event: WebhookEvent) => {
-  if (event.type !== 'message' || event.message.type !== 'text') return;
+  if (event.type !== 'message') return;
 
   const userId = event.source.userId;
   if (!userId) return;
 
-  const message: WebhookMessage = {
-    userId,
-    replyToken: event.replyToken,
-    messageId: event.message.id,
-    type: 'text',
-    text: event.message.text,
-    timestamp: new Date(event.timestamp).toISOString(),
-  };
+  if (event.message.type === 'text') {
+    const message: WebhookMessage = {
+      userId,
+      replyToken: event.replyToken,
+      messageId: event.message.id,
+      type: 'text',
+      text: event.message.text,
+      timestamp: new Date(event.timestamp).toISOString(),
+    };
 
-  await publishWebhookMessage(message);
+    await publishWebhookMessage(message);
+    return;
+  }
+
+  if (
+    event.message.type === 'image' ||
+    event.message.type === 'video' ||
+    event.message.type === 'audio'
+  ) {
+    const message: WebhookMessage = {
+      userId,
+      replyToken: event.replyToken,
+      messageId: event.message.id,
+      type: event.message.type,
+      timestamp: new Date(event.timestamp).toISOString(),
+    };
+
+    await publishWebhookMessage(message);
+  }
 };
 
 api.post(
