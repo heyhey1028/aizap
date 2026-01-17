@@ -153,6 +153,37 @@ resource "google_storage_bucket" "staging" {
 }
 
 # -----------------------------------------------------------------------------
+# Cloud Storage (LINE Media)
+# -----------------------------------------------------------------------------
+
+resource "google_storage_bucket" "line_media" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-line-media"
+  location                    = var.region
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_storage_bucket_iam_member" "line_media_worker" {
+  bucket = google_storage_bucket.line_media.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${module.sa_worker.email}"
+
+  depends_on = [google_project_service.apis, module.sa_worker, google_storage_bucket.line_media]
+}
+
+resource "google_storage_bucket_iam_member" "line_media_adk_viewer" {
+  bucket = google_storage_bucket.line_media.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${module.sa_adk_agent.email}"
+
+  depends_on = [google_project_service.apis, module.sa_adk_agent, google_storage_bucket.line_media]
+}
+
+# -----------------------------------------------------------------------------
 # Artifact Registry
 # -----------------------------------------------------------------------------
 
@@ -245,6 +276,7 @@ module "cloud_run_worker" {
     GCP_PROJECT_ID           = var.project_id
     GCP_REGION               = var.region
     AGENT_ENGINE_RESOURCE_ID = var.agent_engine_resource_id
+    GCS_MEDIA_BUCKET_NAME    = google_storage_bucket.line_media.name
   }
   secrets                   = module.aizap_secrets.cloud_run_secrets
   min_instance_count        = 0
