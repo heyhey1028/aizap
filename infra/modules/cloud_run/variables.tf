@@ -54,8 +54,9 @@ variable "secrets" {
 }
 
 variable "cloud_sql_connection_name" {
-  description = "Cloud SQL インスタンスの接続名（例: project:region:instance）"
+  description = "Cloud SQL インスタンスの接続名（例: project:region:instance）。null の場合は Cloud SQL Proxy を起動しない"
   type        = string
+  default     = null
 }
 
 variable "health_check_path" {

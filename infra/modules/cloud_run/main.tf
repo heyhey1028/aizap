@@ -81,21 +81,24 @@ resource "google_cloud_run_v2_service" "this" {
       }
     }
 
-    # Cloud SQL Auth Proxy sidecar
-    containers {
-      name  = "cloud-sql-proxy"
-      image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.20.0"
+    # Cloud SQL Auth Proxy sidecar（cloud_sql_connection_name が指定された場合のみ）
+    dynamic "containers" {
+      for_each = var.cloud_sql_connection_name != null ? [1] : []
+      content {
+        name  = "cloud-sql-proxy"
+        image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.20.0"
 
-      args = [
-        "--port=5432",
-        "--auto-iam-authn",
-        var.cloud_sql_connection_name,
-      ]
+        args = [
+          "--port=5432",
+          "--auto-iam-authn",
+          var.cloud_sql_connection_name,
+        ]
 
-      resources {
-        limits = {
-          cpu    = "0.5"
-          memory = "256Mi"
+        resources {
+          limits = {
+            cpu    = "0.5"
+            memory = "256Mi"
+          }
         }
       }
     }
