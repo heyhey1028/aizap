@@ -188,6 +188,7 @@ module "cloud_sql" {
   instance_name       = "aizap-postgres-dev"
   database_name       = "aizap"
   availability_type   = "ZONAL"
+  activation_policy   = "ALWAYS"
   deletion_protection = false
   retained_backups    = 7
   iam_users = [

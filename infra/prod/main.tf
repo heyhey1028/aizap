@@ -183,11 +183,14 @@ module "aizap_secrets" {
 module "cloud_sql" {
   source = "../modules/cloud_sql"
 
-  project_id          = var.project_id
-  region              = var.region
-  instance_name       = "aizap-postgres-prod"
-  database_name       = "aizap"
-  availability_type   = "REGIONAL"
+  project_id        = var.project_id
+  region            = var.region
+  instance_name     = "aizap-postgres-prod"
+  database_name     = "aizap"
+  availability_type = "REGIONAL"
+  # 本番でテストする際は "ALWAYS" に変更すること
+  # 現在は過剰な課金を抑えるためインスタンスを停止中
+  activation_policy   = "NEVER"
   deletion_protection = true
   retained_backups    = 30
   iam_users = [

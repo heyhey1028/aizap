@@ -14,6 +14,7 @@ resource "google_sql_database_instance" "this" {
     tier              = "db-custom-1-3840"
     edition           = "ENTERPRISE"
     availability_type = var.availability_type
+    activation_policy = var.activation_policy
     disk_size         = 10
     disk_type         = "PD_SSD"
     disk_autoresize   = true
