@@ -217,11 +217,12 @@ module "cloud_run_bff" {
     ENVIRONMENT       = var.environment
     PUBSUB_TOPIC_NAME = "aizap-webhook-events"
   }
-  secrets               = module.aizap_secrets.cloud_run_secrets
-  min_instance_count    = 0
-  max_instance_count    = 1
-  allow_unauthenticated = true
-  health_check_path     = "/healthz"
+  secrets                   = module.aizap_secrets.cloud_run_secrets
+  min_instance_count        = 0
+  max_instance_count        = 1
+  allow_unauthenticated     = true
+  cloud_sql_connection_name = null
+  health_check_path         = "/healthz"
 
   depends_on = [
     google_project_service.apis,
