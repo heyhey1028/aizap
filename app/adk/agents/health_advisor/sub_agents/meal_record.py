@@ -174,11 +174,22 @@ def confirm_and_record_meal(
         if r["recorded_at"].startswith(today)
     )
 
+    # 目標カロリーと残りカロリーを計算
+    health_goal = tool_context.state.get("health_goal")
+    daily_calorie_target = None
+    remaining_calories = None
+
+    if health_goal and health_goal.get("daily_calorie_target"):
+        daily_calorie_target = health_goal["daily_calorie_target"]
+        remaining_calories = daily_calorie_target - today_calories
+
     return {
         "status": "success",
         "message": f"{meal_type}を記録しました: {pending['dish_name']}",
         "recorded_meal": meal_record,
         "today_total_calories": today_calories,
+        "daily_calorie_target": daily_calorie_target,
+        "remaining_calories": remaining_calories,
         "today_meal_count": len([
             r for r in meal_records if r["recorded_at"].startswith(today)
         ]),
@@ -246,8 +257,20 @@ meal_record_agent = Agent(
 - ユーザーが「OK」「はい」「記録して」と言ったら:
   1. `get_current_datetime` で時刻確認 → meal_type を判断
   2. `confirm_and_record_meal` を呼び出す
+  3. 記録完了後、残りカロリーを伝える（目標設定時のみ）
 - ユーザーが修正を求めたら: 内容を調整して再度 `analyze_meal` を呼び出す
 - ユーザーがキャンセルしたら: `confirm_and_record_meal(confirmed=False)` を呼び出す
+
+### ステップ4: 記録後のフィードバック
+`confirm_and_record_meal` のレスポンスに含まれる情報を使ってフィードバック:
+- `today_total_calories`: 本日の合計カロリー
+- `daily_calorie_target`: 1日の目標カロリー（設定時のみ）
+- `remaining_calories`: 残りカロリー（設定時のみ、マイナスなら超過）
+
+例:
+- 目標内: 「記録しました！今日はあと○○kcal摂れますよ」
+- 超過時: 「記録しました。目標を○○kcalオーバーしています。次の食事で調整しましょう」
+- 目標未設定: 「記録しました！今日の合計は○○kcalです」
 
 ## 食事タイプの判断
 - 6:00-10:00: breakfast（朝食）
