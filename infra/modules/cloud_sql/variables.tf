@@ -41,3 +41,8 @@ variable "iam_users" {
   description = "IAM認証ユーザーのサービスアカウント ID リスト"
   type        = list(string)
 }
+
+variable "activation_policy" {
+  description = "インスタンスのアクティベーションポリシー（ALWAYS: 起動, NEVER: 停止）"
+  type        = string
+}

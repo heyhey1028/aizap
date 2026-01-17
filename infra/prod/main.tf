@@ -188,6 +188,9 @@ module "cloud_sql" {
   instance_name       = "aizap-postgres-prod"
   database_name       = "aizap"
   availability_type   = "REGIONAL"
+  # 本番でテストする際は "ALWAYS" に変更すること
+  # 現在は過剰な課金を抑えるためインスタンスを停止中
+  activation_policy   = "NEVER"
   deletion_protection = true
   retained_backups    = 30
   iam_users = [
