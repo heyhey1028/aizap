@@ -88,6 +88,14 @@ jobs:
           region: ${{ env.REGION }}
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Get Agent Engine ID
+        id: agent-engine
+        uses: ./.github/actions/get-agent-engine-id
+        with:
+          display_name: aizap-health_advisor
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
       - name: Terraform Plan (Pre-Apply Check)
         working-directory: infra/${{ env.TF_ENV }}
         run: |
@@ -96,7 +104,8 @@ jobs:
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
             -var=image_bff=${{ steps.current-bff.outputs.image_uri }} \
-            -var=image_worker=${{ steps.current-worker.outputs.image_uri }}
+            -var=image_worker=${{ steps.current-worker.outputs.image_uri }} \
+            -var=agent_engine_resource_id=${{ steps.agent-engine.outputs.agent_engine_id }}
 
       - name: Terraform Apply
         working-directory: infra/${{ env.TF_ENV }}
@@ -106,7 +115,8 @@ jobs:
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
             -var=image_bff=${{ steps.current-bff.outputs.image_uri }} \
-            -var=image_worker=${{ steps.current-worker.outputs.image_uri }}
+            -var=image_worker=${{ steps.current-worker.outputs.image_uri }} \
+            -var=agent_engine_resource_id=${{ steps.agent-engine.outputs.agent_engine_id }}
 
       - name: Get BFF image (for verification)
         if: always()
@@ -135,4 +145,5 @@ jobs:
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
             -var=image_bff=${{ steps.verify-bff.outputs.image_uri }} \
-            -var=image_worker=${{ steps.verify-worker.outputs.image_uri }} || exit 0
+            -var=image_worker=${{ steps.verify-worker.outputs.image_uri }} \
+            -var=agent_engine_resource_id=${{ steps.agent-engine.outputs.agent_engine_id }} || exit 0
