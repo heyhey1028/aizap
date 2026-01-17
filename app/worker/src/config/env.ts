@@ -48,6 +48,20 @@ export function getAgentEngineResourceId(): string {
 }
 
 /**
+ * 画像/動画保存用の GCS バケット名を取得する。
+ *
+ * @returns GCS バケット名
+ * @throws {Error} 環境変数 GCS_MEDIA_BUCKET_NAME が未設定の場合
+ */
+export function getMediaBucketName(): string {
+  const value = process.env.GCS_MEDIA_BUCKET_NAME;
+  if (!value) {
+    throw new Error('GCS_MEDIA_BUCKET_NAME environment variable is not set');
+  }
+  return value;
+}
+
+/**
  * LINE チャネルアクセストークンを取得する。
  *
  * @returns LINE チャネルアクセストークン
