@@ -30,5 +30,4 @@ variable "image_worker" {
 variable "agent_engine_resource_id" {
   description = "Agent Engine のリソース ID（Reasoning Engine ID）"
   type        = string
-  default     = ""
 }

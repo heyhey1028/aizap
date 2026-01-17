@@ -241,15 +241,20 @@ module "cloud_run_worker" {
   image                 = var.image_worker
   service_account_email = module.sa_worker.email
   env_vars = {
-    ENVIRONMENT  = var.environment
-    DATABASE_URL = "postgresql://${module.sa_worker.account_id}@${var.project_id}.iam@localhost:5432/${module.cloud_sql.database_name}"
+    ENVIRONMENT              = var.environment
+    DATABASE_URL             = "postgresql://${module.sa_worker.account_id}@${var.project_id}.iam@localhost:5432/${module.cloud_sql.database_name}"
+    GCP_PROJECT_ID           = var.project_id
+    GCP_REGION               = var.region
+    AGENT_ENGINE_RESOURCE_ID = var.agent_engine_resource_id
   }
+  secrets                   = module.aizap_secrets.cloud_run_secrets
   min_instance_count        = 0
   max_instance_count        = 5
   allow_unauthenticated     = false
   cloud_sql_connection_name = module.cloud_sql.connection_name
+  health_check_path         = "/health"
 
-  depends_on = [google_project_service.apis, module.sa_worker, module.cloud_sql]
+  depends_on = [google_project_service.apis, module.sa_worker, module.cloud_sql, module.aizap_secrets]
 }
 
 # -----------------------------------------------------------------------------
