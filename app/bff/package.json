@@ -18,6 +18,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@google-cloud/pubsub": "^5.2.0",
     "@hono/node-server": "^1.0.0",
     "@line/bot-sdk": "^9.0.0",
     "hono": "^4.0.0",
