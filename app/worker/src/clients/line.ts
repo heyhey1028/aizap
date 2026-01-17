@@ -4,6 +4,7 @@
  * LINE Push API を使用してユーザーにメッセージを送信する。
  */
 import { messagingApi, TextMessage } from '@line/bot-sdk';
+import { Readable } from 'node:stream';
 import { getLineChannelAccessToken } from '@/config/env.js';
 import { logger } from '@/utils/logger.js';
 
@@ -22,6 +23,46 @@ export function getLineClient(): messagingApi.MessagingApiClient {
     });
   }
   return lineClient;
+}
+
+export interface LineMessageContent {
+  /** メッセージコンテンツのストリーム */
+  stream: Readable;
+  /** Content-Type */
+  contentType: string | null;
+}
+
+/**
+ * LINE Messaging API からメッセージコンテンツを取得する。
+ *
+ * @param messageId LINE メッセージ ID
+ * @returns コンテンツのストリームと Content-Type
+ */
+export async function getMessageContent(
+  messageId: string
+): Promise<LineMessageContent> {
+  const token = getLineChannelAccessToken();
+  const response = await fetch(
+    `https://api-data.line.me/v2/bot/message/${messageId}/content`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok || !response.body) {
+    logger.error(
+      { messageId, status: response.status },
+      'Failed to fetch LINE message content'
+    );
+    throw new Error('LINE message content fetch failed');
+  }
+
+  return {
+    stream: Readable.fromWeb(response.body),
+    contentType: response.headers.get('content-type'),
+  };
 }
 
 /**
