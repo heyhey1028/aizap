@@ -27,6 +27,7 @@ flowchart LR
         end
 
         PubSub["Pub/Sub"]
+        GCS["Cloud Storage\n(LINE メディア)"]
 
         subgraph CloudSQL["Cloud SQL"]
             PostgreSQL["PostgreSQL"]
@@ -53,6 +54,10 @@ flowchart LR
     %% LIFF flow (sync)
     LINEApp -->|"LIFF URL"| BFF
 
+    %% Media storage
+    Worker -->|"Upload"| GCS
+    AgentEngine -->|"Read"| GCS
+
     %% Database connections (BFF は接続しない)
     Worker --> PostgreSQL
     AgentEngine --> PostgreSQL
@@ -64,15 +69,16 @@ flowchart LR
 
 ## コンポーネント
 
-| コンポーネント        | 技術スタック        | 説明                                                              |
-| --------------------- | ------------------- | ----------------------------------------------------------------- |
-| **aizap-bff**         | TypeScript / Hono   | LINE Webhook 受信 → Pub/Sub Publish、LIFF ホスト（DB 接続なし）   |
-| **aizap-worker**      | TypeScript / Hono   | Pub/Sub Push → Agent Engine REST API → LINE Push API、DB 接続    |
-| **Agent Engine**      | Python / ADK        | ADK エージェント（`app/adk/agents/` 配下）、DB 接続               |
-| **Cloud SQL**         | PostgreSQL          | データベース（Worker と Agent Engine から接続）                   |
-| **Cloud Pub/Sub**     | -                   | Webhook 非同期処理（LINE 2 秒タイムアウト対策）                   |
-| **Artifact Registry** | -                   | コンテナイメージ保存                                              |
-| **Workload Identity** | -                   | GitHub Actions → GCP 認証                                         |
+| コンポーネント        | 技術スタック        | 説明                                                                        |
+| --------------------- | ------------------- | --------------------------------------------------------------------------- |
+| **aizap-bff**         | TypeScript / Hono   | LINE Webhook 受信 → Pub/Sub Publish、LIFF ホスト（DB 接続なし）             |
+| **aizap-worker**      | TypeScript / Hono   | Pub/Sub Push → Agent Engine REST API → LINE Push API、DB 接続、GCS Upload  |
+| **Agent Engine**      | Python / ADK        | ADK エージェント（`app/adk/agents/` 配下）、DB 接続、GCS Read               |
+| **Cloud SQL**         | PostgreSQL          | データベース（Worker と Agent Engine から接続）                             |
+| **Cloud Storage**     | -                   | LINE メディア保存（画像/動画/音声）、Worker が Upload、Agent Engine が Read |
+| **Cloud Pub/Sub**     | -                   | Webhook 非同期処理（LINE 2 秒タイムアウト対策）                             |
+| **Artifact Registry** | -                   | コンテナイメージ保存                                                        |
+| **Workload Identity** | -                   | GitHub Actions → GCP 認証                                                   |
 
 ### 責務分離の方針
 
