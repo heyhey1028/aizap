@@ -31,6 +31,7 @@ pnpm install
 GCP_PROJECT_ID=<your_project_id>
 GCP_REGION=<your_region>
 AGENT_ENGINE_RESOURCE_ID=<your_agent_engine_resource_id>
+GCS_MEDIA_BUCKET_NAME=<your_gcs_media_bucket_name>
 LINE_CHANNEL_ACCESS_TOKEN=<your_channel_access_token>
 ```
 
@@ -42,6 +43,7 @@ gcloud secrets versions access latest --secret="LINE_CHANNEL_ACCESS_TOKEN" --pro
 ```
 
 - Agent Engine の Resource ID は GCP Console の Agent Engine ページで確認できます
+- GCS のバケット名は `${project_id}-line-media` を想定しています
 
 3. GCP 認証（ADC）を設定
 
