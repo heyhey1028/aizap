@@ -4,14 +4,13 @@
  * BFF から Pub/Sub 経由で受信するメッセージのスキーマを定義する。
  */
 
-// TODO: 画像や動画メッセージに対応する際に 'image' | 'video' 等を追加
 /** メッセージタイプ */
-export type MessageType = 'text';
+export type MessageType = 'text' | 'image' | 'video' | 'audio';
 
 /**
  * Pub/Sub 経由で BFF から Worker へ送信されるメッセージ
  */
-export interface WebhookMessage {
+interface WebhookMessageBase {
   /** LINE ユーザー ID */
   userId: string;
   /** 返信用トークン（Pub/Sub 経由では有効期限切れの可能性あり） */
@@ -20,13 +19,27 @@ export interface WebhookMessage {
   messageId: string;
   /** メッセージタイプ */
   type: MessageType;
-  /** テキストメッセージの内容 */
-  text: string;
   /** Agent Engine のセッション ID（新規セッションの場合は undefined） */
   sessionId?: string;
   /** タイムスタンプ（ISO 8601 形式） */
   timestamp: string;
 }
+
+export type WebhookMessage =
+  | (WebhookMessageBase & {
+      /** テキストメッセージの内容 */
+      type: 'text';
+      text: string;
+    })
+  | (WebhookMessageBase & {
+      type: 'image';
+    })
+  | (WebhookMessageBase & {
+      type: 'video';
+    })
+  | (WebhookMessageBase & {
+      type: 'audio';
+    });
 
 /**
  * Pub/Sub Push メッセージのエンベロープ
