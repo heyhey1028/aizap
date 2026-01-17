@@ -50,16 +50,14 @@ variable "allow_unauthenticated" {
 variable "secrets" {
   description = "環境変数名をキー、シークレット名を値とする map（例: { LINE_CHANNEL_SECRET = \"LINE_CHANNEL_SECRET\" }）"
   type        = map(string)
-  default     = {}
 }
 
 variable "cloud_sql_connection_name" {
-  description = "Cloud SQL インスタンスの接続名（例: project:region:instance）"
+  description = "Cloud SQL インスタンスの接続名（例: project:region:instance）。null の場合は Cloud SQL Proxy を無効化"
   type        = string
 }
 
 variable "health_check_path" {
-  description = "Health check のパス（例: \"/healthz\"）。指定されない場合は health check を無効化"
+  description = "Health check のパス（例: \"/healthz\"）。null の場合は health check を無効化"
   type        = string
-  default     = null
 }

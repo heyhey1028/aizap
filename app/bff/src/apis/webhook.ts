@@ -1,25 +1,30 @@
 import { Hono } from 'hono';
 import type { WebhookEvent } from '@line/bot-sdk';
 import { logger } from '@/utils/logger.js';
-import { getLineClient } from '@/clients/line.js';
 import { lineMiddleware } from '@/middleware/line.js';
 import { getLineChannelSecret } from '@/config/env.js';
+import { publishWebhookMessage } from '@/clients/pubsub.js';
+import type { WebhookMessage } from '@/types/index.js';
 
 const api: Hono = new Hono();
-const client = getLineClient();
 
+// TODO: 画像や動画メッセージにも対応する（GCSアップロード等）
 const handleEvent = async (event: WebhookEvent) => {
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
-  await client.replyMessage({
+  const userId = event.source.userId;
+  if (!userId) return;
+
+  const message: WebhookMessage = {
+    userId,
     replyToken: event.replyToken,
-    messages: [
-      {
-        type: 'text',
-        text: `reply: ${event.message.text}`,
-      },
-    ],
-  });
+    messageId: event.message.id,
+    type: 'text',
+    text: event.message.text,
+    timestamp: new Date(event.timestamp).toISOString(),
+  };
+
+  await publishWebhookMessage(message);
 };
 
 api.post(

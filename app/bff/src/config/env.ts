@@ -27,3 +27,17 @@ export function getLineChannelSecret(): string {
   }
   return value;
 }
+
+/**
+ * Pub/Subトピック名を取得する。
+ *
+ * @returns Pub/Subトピック名
+ * @throws {Error} 環境変数 PUBSUB_TOPIC_NAME が未設定の場合
+ */
+export function getPubSubTopicName(): string {
+  const value = process.env.PUBSUB_TOPIC_NAME;
+  if (!value) {
+    throw new Error('PUBSUB_TOPIC_NAME environment variable is not set');
+  }
+  return value;
+}

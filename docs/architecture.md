@@ -19,11 +19,11 @@ flowchart LR
 
     subgraph GCP["GCP Project"]
         subgraph CloudRunBFF["Cloud Run: aizap-bff"]
-            BFF["aizap-bff"]
+            BFF["aizap-bff\n(TypeScript/Hono)"]
         end
 
         subgraph CloudRunWorker["Cloud Run: aizap-worker"]
-            Worker["aizap-worker"]
+            Worker["aizap-worker\n(TypeScript/Hono)"]
         end
 
         PubSub["Pub/Sub"]
@@ -33,7 +33,7 @@ flowchart LR
         end
 
         subgraph VertexAI["Vertex AI"]
-            AgentEngine["Agent Engine"]
+            AgentEngine["Agent Engine\n(ADK/Python)"]
         end
     end
 
@@ -47,15 +47,15 @@ flowchart LR
     LINEServer -->|"Webhook"| BFF
     BFF -->|"Publish"| PubSub
     PubSub -->|"Push"| Worker
-    Worker -->|"SDK"| AgentEngine
-    Worker -->|"reply/push"| LINEServer
+    Worker -->|"REST API"| AgentEngine
+    Worker -->|"Push API"| LINEServer
 
     %% LIFF flow (sync)
     LINEApp -->|"LIFF URL"| BFF
 
-    %% Database connections
-    BFF --> PostgreSQL
+    %% Database connections (BFF は接続しない)
     Worker --> PostgreSQL
+    AgentEngine --> PostgreSQL
 
     %% Agent Engine dependencies
     AgentEngine --> FitBit
@@ -64,15 +64,21 @@ flowchart LR
 
 ## コンポーネント
 
-| コンポーネント        | 説明                                                     |
-| --------------------- | -------------------------------------------------------- |
-| **aizap-bff**         | LINE Webhook 受信、LIFF ホスト・API エンドポイント       |
-| **aizap-worker**      | Pub/Sub Push、Agent Engine 呼び出し、LINE 返信           |
-| **Agent Engine**      | ADK エージェント（`app/adk/agents/` 配下を自動デプロイ） |
-| **Cloud SQL**         | PostgreSQL データベース（bff と worker から接続）        |
-| **Cloud Pub/Sub**     | Webhook 非同期処理（LINE 2 秒タイムアウト対策）          |
-| **Artifact Registry** | コンテナイメージ保存                                     |
-| **Workload Identity** | GitHub Actions → GCP 認証                                |
+| コンポーネント        | 技術スタック        | 説明                                                              |
+| --------------------- | ------------------- | ----------------------------------------------------------------- |
+| **aizap-bff**         | TypeScript / Hono   | LINE Webhook 受信 → Pub/Sub Publish、LIFF ホスト（DB 接続なし）   |
+| **aizap-worker**      | TypeScript / Hono   | Pub/Sub Push → Agent Engine REST API → LINE Push API、DB 接続    |
+| **Agent Engine**      | Python / ADK        | ADK エージェント（`app/adk/agents/` 配下）、DB 接続               |
+| **Cloud SQL**         | PostgreSQL          | データベース（Worker と Agent Engine から接続）                   |
+| **Cloud Pub/Sub**     | -                   | Webhook 非同期処理（LINE 2 秒タイムアウト対策）                   |
+| **Artifact Registry** | -                   | コンテナイメージ保存                                              |
+| **Workload Identity** | -                   | GitHub Actions → GCP 認証                                         |
+
+### 責務分離の方針
+
+- **BFF**: LINE の窓口として、2 秒以内に 200 を返すことに専念。CloudSQL には接続しない。
+- **Worker**: Pub/Sub から受け取ったメッセージを処理。Agent Engine 呼び出し、LINE 返信、DB 操作を担当。
+- **Agent Engine**: ビジネスロジック（エージェント処理）に専念。必要に応じて DB アクセス。
 
 ## エージェント構成
 

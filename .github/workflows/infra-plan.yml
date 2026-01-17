@@ -90,6 +90,14 @@ jobs:
           region: ${{ env.REGION }}
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Get Agent Engine ID
+        id: agent-engine
+        uses: ./.github/actions/get-agent-engine-id
+        with:
+          display_name: aizap-health_advisor
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+
       - name: Terraform Plan
         working-directory: infra/${{ env.TF_ENV }}
         run: |
@@ -98,4 +106,5 @@ jobs:
             -var=region=${{ env.REGION }} \
             -var=environment=${{ env.TF_ENV }} \
             -var=image_bff=${{ steps.current-bff.outputs.image_uri }} \
-            -var=image_worker=${{ steps.current-worker.outputs.image_uri }}
+            -var=image_worker=${{ steps.current-worker.outputs.image_uri }} \
+            -var=agent_engine_resource_id=${{ steps.agent-engine.outputs.agent_engine_id }}
