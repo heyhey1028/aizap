@@ -240,6 +240,196 @@ def suggest_recipes(
   }
 
 
+def generate_custom_recipe(
+    tool_context: ToolContext,
+    target_calories: Optional[int] = None,
+    priority: Optional[str] = None,
+    main_ingredient: Optional[str] = None,
+    cooking_time: Optional[str] = None,
+) -> dict:
+    """ユーザーの条件に基づきLLMがレシピを生成するための情報を返します。
+
+    このツールは「LLMがレシピを生成するための条件情報」を返します。
+    実際のレシピ生成はエージェント自身が行います（LLMの創造性を活用）。
+
+    Args:
+        tool_context: ADKが提供するToolContext。
+        target_calories: 目標カロリー（kcal）。指定しない場合は残りカロリーから算出。
+        priority: 優先事項。"high_protein"（高タンパク）, "low_fat"（低脂質）,
+                  "low_carb"（低糖質）, "balanced"（バランス型）, "filling"（満腹感重視）
+        main_ingredient: メインとなる食材（例: "鶏むね肉", "豆腐"）
+        cooking_time: 調理時間。"quick"（15分以内）, "normal"（30分程度）, "slow"（60分以上）
+
+    Returns:
+        条件情報をまとめた辞書（エージェントがこれを元にレシピ生成）
+    """
+    # 1. 健康目標を取得
+    health_goal = tool_context.state.get("health_goal")
+    daily_calorie_target = None
+    goal_type = None
+
+    if health_goal:
+        daily_calorie_target = health_goal.get("daily_calorie_target")
+        goal_type = health_goal.get("goal_type")
+
+    # 2. 今日の摂取カロリーを計算
+    meal_records = tool_context.state.get("meal_records", [])
+    today = datetime.now().strftime("%Y-%m-%d")
+    today_calories = sum(
+        r["estimated_calories"]
+        for r in meal_records
+        if r["recorded_at"].startswith(today)
+    )
+
+    # 3. 残りカロリーを算出
+    remaining_calories = None
+    if daily_calorie_target:
+        remaining_calories = daily_calorie_target - today_calories
+
+    # 4. 目標カロリーの決定
+    if target_calories is None:
+        if remaining_calories is not None:
+            # 残りカロリーの70-80%を目安に
+            target_calories = int(remaining_calories * 0.75)
+        else:
+            # デフォルト値
+            target_calories = 500
+
+    # 5. 現在時刻から食事タイプを判定
+    now = datetime.now()
+    hour = now.hour
+    if 5 <= hour < 10:
+        meal_type = "breakfast"
+    elif 10 <= hour < 15:
+        meal_type = "lunch"
+    else:
+        meal_type = "dinner"
+
+    # 6. 優先事項に応じたPFC目安を設定
+    pfc_guidelines = _get_pfc_guidelines(priority, target_calories)
+
+    # 7. レシピ生成のためのガイドライン
+    recipe_guidelines = {
+        "high_protein": [
+            "鶏むね肉、ささみ、魚、豆腐、卵などを主役に",
+            "野菜を多めに加えてボリュームアップ",
+            "油は控えめに、蒸し・茹で・グリル調理を推奨",
+        ],
+        "low_fat": [
+            "脂身の少ない肉、白身魚、豆腐を選択",
+            "油は最小限に、ノンオイルドレッシング活用",
+            "蒸し料理、煮物がおすすめ",
+        ],
+        "low_carb": [
+            "主食を減らすか置き換え（カリフラワーライスなど）",
+            "野菜、肉、魚を中心に",
+            "砂糖・みりんは控えめに",
+        ],
+        "filling": [
+            "食物繊維豊富な野菜・きのこ・こんにゃくを多めに",
+            "スープ・汁物で水分を取る",
+            "タンパク質をしっかり摂る",
+            "咀嚼回数が増える食材を選ぶ",
+        ],
+        "balanced": [
+            "主食・主菜・副菜をバランスよく",
+            "野菜は1食で120g以上を目標",
+            "タンパク質源を必ず含める",
+        ],
+    }
+
+    guidelines = recipe_guidelines.get(priority, recipe_guidelines["balanced"])
+
+    return {
+        "status": "success",
+        "message": "以下の条件に基づいてレシピを生成してください",
+        "conditions": {
+            "target_calories": target_calories,
+            "priority": priority or "balanced",
+            "main_ingredient": main_ingredient,
+            "cooking_time": cooking_time or "normal",
+            "meal_type": meal_type,
+        },
+        "user_context": {
+            "remaining_calories": remaining_calories,
+            "today_calories": today_calories,
+            "daily_calorie_target": daily_calorie_target,
+            "goal_type": goal_type,
+        },
+        "pfc_guidelines": pfc_guidelines,
+        "recipe_guidelines": guidelines,
+        "instruction": """
+上記の条件に基づいて、オリジナルレシピを創作してください。
+
+【出力フォーマット】
+## 【料理名】
+
+📊 **栄養情報（推定）**
+- カロリー: 約○○kcal
+- タンパク質: ○○g
+- 脂質: ○○g
+- 炭水化物: ○○g
+
+⏱️ **調理時間**: 約○○分
+
+### 材料（1人分）
+- 材料1: 分量
+- 材料2: 分量
+...
+
+### 作り方
+1. ステップ1
+2. ステップ2
+...
+
+### ポイント
+- 調理のコツやアレンジ案
+""",
+    }
+
+
+def _get_pfc_guidelines(priority: Optional[str], target_calories: int) -> dict:
+    """優先事項に応じたPFC（タンパク質・脂質・炭水化物）の目安を返す"""
+    if priority == "high_protein":
+        # タンパク質30-35%, 脂質25%, 炭水化物40-45%
+        protein = int(target_calories * 0.32 / 4)  # 4kcal/g
+        fat = int(target_calories * 0.25 / 9)      # 9kcal/g
+        carbs = int(target_calories * 0.43 / 4)   # 4kcal/g
+    elif priority == "low_fat":
+        # タンパク質25%, 脂質15-20%, 炭水化物55-60%
+        protein = int(target_calories * 0.25 / 4)
+        fat = int(target_calories * 0.17 / 9)
+        carbs = int(target_calories * 0.58 / 4)
+    elif priority == "low_carb":
+        # タンパク質30%, 脂質40%, 炭水化物30%
+        protein = int(target_calories * 0.30 / 4)
+        fat = int(target_calories * 0.40 / 9)
+        carbs = int(target_calories * 0.30 / 4)
+    elif priority == "filling":
+        # 満腹感重視: タンパク質30%, 脂質25%, 炭水化物45%
+        protein = int(target_calories * 0.30 / 4)
+        fat = int(target_calories * 0.25 / 9)
+        carbs = int(target_calories * 0.45 / 4)
+    else:  # balanced
+        # バランス型: タンパク質20%, 脂質25%, 炭水化物55%
+        protein = int(target_calories * 0.20 / 4)
+        fat = int(target_calories * 0.25 / 9)
+        carbs = int(target_calories * 0.55 / 4)
+
+    return {
+        "protein_g": protein,
+        "fat_g": fat,
+        "carbs_g": carbs,
+        "description": {
+            "high_protein": "高タンパク（筋肉維持・満腹感）",
+            "low_fat": "低脂質（カロリー抑制）",
+            "low_carb": "低糖質（血糖値コントロール）",
+            "filling": "満腹感重視（食物繊維・タンパク質）",
+            "balanced": "バランス型",
+        }.get(priority, "バランス型"),
+    }
+
+
 def _get_general_advice(
     meal_type: str,
     goal_type: Optional[str],
@@ -284,50 +474,112 @@ pre_meal_advisor_agent = Agent(
 ## 使用するツール
 - `get_current_datetime`: 現在時刻を確認（朝食/昼食/夕食の判断に使用）
 - `get_meal_history`: 過去の食事記録を確認
-- `suggest_recipes`: ユーザーの状況に合わせたレシピを提案（**積極的に使用してください**）
+- `generate_custom_recipe`: ユーザー条件に基づくカスタムレシピ生成（**推奨**）
+- `suggest_recipes`: 楽天レシピAPIからのレシピ検索
 
-## suggest_recipesツールについて
-このツールは楽天レシピAPIを使用して、ユーザーの状況に最適なレシピを提案します。
+---
 
-### keyword引数について
-- keyword引数で食材や料理ジャンルを指定可能
-- 例: keyword="鶏むね肉" → 鶏むね肉を使ったレシピ
-- 例: keyword="ヘルシー" → ヘルシー料理のレシピ
-- 例: keyword="豚肉" → 豚肉を使ったレシピ
-- ユーザーが特定の食材や料理を指定した場合は、keyword引数を使用してください
+## レシピ提案の2つのモード
 
-### keywordを省略した場合の動作
-- 残りカロリーが少ない場合 → ヘルシーレシピを提案
-- 減量目標の場合 → ヘルシーレシピを提案
-- 筋肉増量目標の場合 → 主菜（肉料理）を提案
-- それ以外 → 時間帯に応じたレシピを提案
+### モード1: カスタムレシピ生成（推奨）
+ユーザーが具体的な条件を指定した場合に使用します。
 
-## アドバイスのポイント
-1. 現在時刻から食事のタイミング（朝食/昼食/夕食）を判断
-2. 過去の食事記録があれば、栄養バランスを考慮
-3. 健康目標があれば、それに沿った提案
-4. 具体的なメニュー例を挙げる
-5. 画像が送られてきた場合は、その食材を使ったレシピを提案
+**使用するケース:**
+- 「残り300kcalで満腹になりたい」
+- 「高タンパク低脂質なレシピ」
+- 「400kcal以内で高タンパクなもの」
+- 「低糖質で簡単に作れるもの」
 
-## レシピ提案時の注意事項
-- **必ずクレジット表記を含めてください**: レシピを紹介する際は「【楽天レシピ】」のクレジットを表示
-- **提案理由を説明してください**: なぜそのレシピをおすすめするのか、ユーザーの状況に合わせて説明
-- **残りカロリー情報を活用**: 残りカロリーがある場合は、その情報も伝える
-- **栄養情報を表示**: 各レシピの`estimated_nutrition`を使って、カロリー・PFCバランスを表示
+**手順:**
+1. `generate_custom_recipe`で条件を整理
+2. 返された条件とガイドラインを元に、あなた自身がレシピを創作
+3. `suggest_recipes`で楽天の関連レシピを参考表示
 
-## 栄養情報について
-各レシピには`estimated_nutrition`フィールドが含まれています：
-- `calories`: 推定カロリー（kcal）
-- `protein`: 推定タンパク質（g）
-- `fat`: 推定脂質（g）
-- `carbs`: 推定炭水化物（g）
-- `is_estimate`: 概算値であることを示すフラグ
+**引数の対応表:**
+| ユーザーの要望 | priority引数 |
+|--------------|-------------|
+| 高タンパク、筋肉、タンパク質 | "high_protein" |
+| 低脂質、脂肪控えめ | "low_fat" |
+| 低糖質、糖質制限 | "low_carb" |
+| 満腹、お腹いっぱい | "filling" |
+| バランス良く | "balanced" |
 
-これらは材料から概算した推定値です。実際の値とは異なる場合があります。
+### モード2: 楽天レシピ検索（従来）
+食材やカテゴリを指定した場合に使用します。
 
-## 回答例
-「今日は既に1,200kcal摂取されていて、残り600kcalですね。
-夕食には、タンパク質をしっかり摂れる鶏胸肉のサラダはいかがでしょうか？
+**使用するケース:**
+- 「鶏むね肉のレシピを教えて」
+- 「おすすめのレシピは？」
+- 「ヘルシーな料理は？」
+
+**手順:**
+- `suggest_recipes`で楽天APIからレシピ取得
+
+---
+
+## カスタムレシピ生成のガイドライン
+
+レシピを創作する際は以下を守ってください：
+- 目標カロリー内に収まるよう材料量を調整
+- PFCバランスは`pfc_guidelines`に従う
+- 調理時間は指定に合わせる（quick=15分、normal=30分、slow=60分以上）
+- 材料は一般的なスーパーで入手可能なもの
+- 出力フォーマットは`instruction`フィールドに従う
+
+---
+
+## 回答例（モード1: カスタムレシピ生成）
+
+**ユーザー:** 「残り400kcalで高タンパクなレシピを教えて」
+
+**あなたの回答:**
+```
+残り400kcal・高タンパクに最適なレシピをご提案します！
+
+## 【鶏むね肉の塩麹焼き 野菜たっぷり】
+
+📊 **栄養情報（推定）**
+- カロリー: 約320kcal
+- タンパク質: 38g
+- 脂質: 8g
+- 炭水化物: 15g
+
+⏱️ **調理時間**: 約25分
+
+### 材料（1人分）
+- 鶏むね肉: 150g
+- 塩麹: 大さじ1
+- ブロッコリー: 80g
+- パプリカ: 1/2個
+- オリーブオイル: 小さじ1
+
+### 作り方
+1. 鶏むね肉に塩麹を揉み込み、15分置く
+2. ブロッコリーは小房に分け、パプリカは一口大に切る
+3. フライパンにオリーブオイルを熱し、鶏肉を焼く
+4. 野菜を加えて蒸し焼きにする
+
+### ポイント
+- 塩麹で柔らかく仕上がります
+- 野菜でボリュームアップ！
+
+---
+
+📚 **楽天レシピで関連レシピを見る:**
+【楽天レシピ】
+1. 鶏むね肉のさっぱり煮（約350kcal）
+   https://recipe.rakuten.co.jp/...
+```
+
+---
+
+## 回答例（モード2: 楽天レシピ検索）
+
+**ユーザー:** 「鶏むね肉のレシピを教えて」
+
+**あなたの回答:**
+```
+鶏むね肉を使ったおすすめレシピをご紹介します！
 
 【楽天レシピ】おすすめレシピ：
 1. 鶏むね肉のさっぱり煮（約30分）
@@ -336,8 +588,14 @@ pre_meal_advisor_agent = Agent(
    https://recipe.rakuten.co.jp/...
 
 ※栄養情報は材料からの概算値です。
+```
 
-減量目標に合わせて、ヘルシーなレシピをおすすめしました。」
+---
+
+## 注意事項
+- カスタムレシピ生成後は、必ず`suggest_recipes`で関連レシピも表示
+- 楽天レシピを紹介する際は「【楽天レシピ】」のクレジットを表示
+- 栄養情報は概算値であることを明記
 """,
-    tools=[get_current_datetime, get_meal_history, suggest_recipes],
+    tools=[get_current_datetime, get_meal_history, generate_custom_recipe, suggest_recipes],
 )
