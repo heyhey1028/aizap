@@ -70,7 +70,9 @@ export function getMediaBucketName(): string {
 export function getLineChannelAccessToken(): string {
   const value = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!value) {
-    throw new Error('LINE_CHANNEL_ACCESS_TOKEN environment variable is not set');
+    throw new Error(
+      'LINE_CHANNEL_ACCESS_TOKEN environment variable is not set'
+    );
   }
   return value;
 }

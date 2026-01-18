@@ -90,11 +90,7 @@ api.post('/webhook', async (c) => {
         label = '音声';
       }
       const message = `ユーザーが${label}を送信しました。 GCS: ${gcsUri}`;
-      const response = await agentClient.query(
-        userId,
-        sessionId,
-        message
-      );
+      const response = await agentClient.query(userId, sessionId, message);
 
       logger.info({ userId }, 'Got Agent Engine response');
 

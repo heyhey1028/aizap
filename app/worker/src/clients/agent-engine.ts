@@ -4,7 +4,11 @@
  * Vertex AI Agent Engine にデプロイされた ADK エージェントを呼び出す。
  */
 import { GoogleAuth } from 'google-auth-library';
-import { getProjectId, getRegion, getAgentEngineResourceId } from '@/config/env.js';
+import {
+  getProjectId,
+  getRegion,
+  getAgentEngineResourceId,
+} from '@/config/env.js';
 import { logger } from '@/utils/logger.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
@@ -138,12 +142,19 @@ export class AgentEngineClient {
    * @param message ユーザーからのメッセージ
    * @returns エージェントからのレスポンステキスト
    */
-  async query(userId: string, sessionId: string | undefined, message: string): Promise<string> {
+  async query(
+    userId: string,
+    sessionId: string | undefined,
+    message: string
+  ): Promise<string> {
     const client = await this.auth.getClient();
 
     const endpoint = this.getStreamQueryEndpointUrl();
     const resolvedSessionId = sessionId ?? (await this.createSession(userId));
-    logger.info({ userId, sessionId: resolvedSessionId }, 'Querying Agent Engine');
+    logger.info(
+      { userId, sessionId: resolvedSessionId },
+      'Querying Agent Engine'
+    );
 
     const response = await client.request<string>({
       url: endpoint,
@@ -153,7 +164,10 @@ export class AgentEngineClient {
       responseType: 'text',
     });
 
-    const responseText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    const responseText =
+      typeof response.data === 'string'
+        ? response.data
+        : JSON.stringify(response.data);
     return this.parseStreamResponse(responseText);
   }
 
