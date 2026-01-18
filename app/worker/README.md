@@ -33,6 +33,7 @@ GCP_REGION=<your_region>
 AGENT_ENGINE_RESOURCE_ID=<your_agent_engine_resource_id>
 GCS_MEDIA_BUCKET_NAME=<your_gcs_media_bucket_name>
 LINE_CHANNEL_ACCESS_TOKEN=<your_channel_access_token>
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/aizap?schema=public
 ```
 
 - Secret Manager から取得する場合
@@ -56,6 +57,39 @@ gcloud auth application-default login
 ```bash
 pnpm dev
 ```
+
+## Prisma / データベース
+
+ローカル開発ではリポジトリ直下の `docker-compose.yml` を使用します。
+Prisma CLI の実行には `DATABASE_URL` が必須です（`.env` は自動で読み込まれません）。
+
+### Docker Compose の操作
+
+```bash
+# 起動
+docker compose up -d
+# 停止
+docker compose stop
+# 再開
+docker compose start
+# 停止して削除
+docker compose down
+# ログ
+docker compose logs -f postgres
+```
+
+```bash
+# リポジトリ直下で実行
+docker compose up -d
+
+cd app/worker
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aizap?schema=public"
+pnpm prisma migrate dev
+```
+
+本番・dev 環境は Cloud Run Job で `prisma migrate deploy` を実行します。
+Prisma Client の生成が必要な場合は `pnpm prisma:generate` を実行してください。
+`pnpm prisma migrate dev` で生成される `prisma/migrations/**` は必ずコミットしてください。
 
 ## ローカル E2E テスト
 
