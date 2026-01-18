@@ -100,6 +100,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        if: matrix.app == 'worker'
+        run: pnpm prisma:generate
+
       - name: Check format
         run: pnpm format:check
 
