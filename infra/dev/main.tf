@@ -288,6 +288,17 @@ module "cloud_run_worker" {
   depends_on = [google_project_service.apis, module.sa_worker, module.cloud_sql, module.aizap_secrets]
 }
 
+# Pub/Sub Push から Worker を呼び出すための権限
+resource "google_cloud_run_v2_service_iam_member" "worker_invoker_pubsub" {
+  project  = var.project_id
+  location = var.region
+  name     = module.cloud_run_worker.service_name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${module.sa_worker.email}"
+
+  depends_on = [module.cloud_run_worker]
+}
+
 # -----------------------------------------------------------------------------
 # Cloud Run Jobs (Prisma Migration)
 # -----------------------------------------------------------------------------

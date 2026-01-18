@@ -37,3 +37,14 @@ resource "google_pubsub_subscription" "this" {
   }
 }
 
+# Pub/Sub が OIDC トークンを発行できるようにする
+data "google_project" "this" {
+  project_id = var.project_id
+}
+
+resource "google_service_account_iam_member" "pubsub_token_creator" {
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${var.push_service_account_email}"
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
