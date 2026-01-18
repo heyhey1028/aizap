@@ -22,9 +22,6 @@ resource "google_cloud_run_v2_service" "this" {
       name  = "app"
       image = var.image
 
-      # Cloud SQL を使う場合、Proxy の起動を待つ
-      depends_on = var.cloud_sql_connection_name != null && var.cloud_sql_connection_name != "" ? ["cloud-sql-proxy"] : []
-
       dynamic "env" {
         for_each = var.env_vars
         content {
