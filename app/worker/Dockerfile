@@ -24,8 +24,8 @@ COPY prisma ./prisma
 COPY scripts ./scripts
 COPY src ./src
 
-# Prisma クライアントを生成（DATABASE_URL は必須）
-RUN DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aizap?schema=public" pnpm prisma:generate
+# Prisma クライアントを生成
+RUN pnpm prisma:generate
 
 # ビルド
 RUN pnpm build
