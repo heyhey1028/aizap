@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 
 # 依存関係をインストール
-RUN pnpm install --frozen-lockfile
+RUN PRISMA_GENERATE_SKIP_POSTINSTALL=1 pnpm install --frozen-lockfile
 
 FROM base AS builder
 
@@ -19,8 +19,13 @@ WORKDIR /app
 
 # 依存関係をコピー
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json tsconfig.json ./
+COPY package.json tsconfig.json prisma.config.ts ./
+COPY prisma ./prisma
+COPY scripts ./scripts
 COPY src ./src
+
+# Prisma クライアントを生成
+RUN pnpm prisma:generate
 
 # ビルド
 RUN pnpm build
@@ -35,6 +40,8 @@ ENV PORT=8080
 # 実行に必要なファイルのみをコピー
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY package.json ./
 
 EXPOSE 8080

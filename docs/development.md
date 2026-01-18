@@ -82,6 +82,43 @@ adk deploy agent_engine \
 2. environment を選択（dev / prod）
 3. 実行（`app/adk/agents/` 配下の全エージェントが自動デプロイされます）
 
+## データベース（Prisma）
+
+Worker の DB スキーマは Prisma で管理します。
+Prisma CLI の実行には `DATABASE_URL` が必須です（`.env` は自動で読み込まれません）。
+
+### Docker Compose の操作
+
+```bash
+# 起動
+docker compose up -d
+# 停止
+docker compose stop
+# 再開
+docker compose start
+# 停止して削除
+docker compose down
+# ログ
+docker compose logs -f postgres
+```
+
+### ローカル開発
+
+```bash
+# リポジトリ直下で起動
+docker compose up -d
+
+cd app/worker
+export DATABASE_URL="postgresql://postgres@localhost:5432/aizap?schema=public"
+pnpm prisma migrate dev
+```
+
+`pnpm prisma migrate dev` で生成される `prisma/migrations/**` は必ずコミットしてください。
+
+### デプロイ時のマイグレーション
+
+dev / prod は Cloud Run Job で `prisma migrate deploy` を実行します。
+
 ## Terraform（ローカル実行）
 
 インフラの変更は基本的に **GitHub Actions** で実行します（PR で plan、main push で apply）。

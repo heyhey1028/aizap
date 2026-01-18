@@ -1,0 +1,4 @@
+# ローカル開発用の docker-compose.yml は GitGuardian の誤検知を避けるため除外
+# 認証は trust を使用しており、本番環境には影響しない
+paths-ignore:
+  - docker-compose.yml

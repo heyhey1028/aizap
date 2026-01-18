@@ -97,7 +97,10 @@ function resolveExtension(contentType: string): string {
   }
 }
 
-function buildObjectName(params: UploadLineContentParams, extension: string): string {
+function buildObjectName(
+  params: UploadLineContentParams,
+  extension: string
+): string {
   const date = new Date(params.timestamp);
   if (Number.isNaN(date.getTime())) {
     return `line/${params.messageType}/user/${params.userId}/unknown/${params.messageId}.${extension}`;

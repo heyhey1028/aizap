@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'app/bff/**'
+      - 'app/worker/**'
       - '.github/workflows/ci-typescript.yaml'
 
 concurrency:
@@ -12,15 +13,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 変更があったサービス (bff, worker) を検知し、動的マトリックスを生成
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_changes: ${{ steps.set-matrix.outputs.has_changes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            bff:
+              - 'app/bff/**'
+            worker:
+              - 'app/worker/**'
+
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          apps=()
+          if [ "${{ steps.filter.outputs.bff }}" == "true" ]; then
+            apps+=("bff")
+          fi
+          if [ "${{ steps.filter.outputs.worker }}" == "true" ]; then
+            apps+=("worker")
+          fi
+          if [ ${#apps[@]} -eq 0 ]; then
+            echo "matrix={\"app\":[]}" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            json=$(printf '%s\n' "${apps[@]}" | jq -R . | jq -s -c '{app: .}')
+            echo "matrix=$json" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
   ci:
-    name: ci
+    name: ci (${{ matrix.app }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     defaults:
       run:
-        working-directory: app/bff
+        working-directory: app/${{ matrix.app }}
     timeout-minutes: 10
     steps:
       - name: Checkout code
@@ -45,12 +93,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-store-${{ matrix.app }}-${{ hashFiles(format('app/{0}/pnpm-lock.yaml', matrix.app)) }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            ${{ runner.os }}-pnpm-store-${{ matrix.app }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        if: matrix.app == 'worker'
+        run: pnpm prisma:generate
 
       - name: Check format
         run: pnpm format:check

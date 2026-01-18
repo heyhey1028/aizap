@@ -70,7 +70,23 @@ export function getMediaBucketName(): string {
 export function getLineChannelAccessToken(): string {
   const value = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!value) {
-    throw new Error('LINE_CHANNEL_ACCESS_TOKEN environment variable is not set');
+    throw new Error(
+      'LINE_CHANNEL_ACCESS_TOKEN environment variable is not set'
+    );
+  }
+  return value;
+}
+
+/**
+ * データベース接続 URL を取得する。
+ *
+ * @returns データベース接続 URL
+ * @throws {Error} 環境変数 DATABASE_URL が未設定の場合
+ */
+export function getDatabaseUrl(): string {
+  const value = process.env.DATABASE_URL;
+  if (!value) {
+    throw new Error('DATABASE_URL environment variable is not set');
   }
   return value;
 }
