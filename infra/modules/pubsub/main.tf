@@ -24,6 +24,7 @@ resource "google_pubsub_subscription" "this" {
 
     oidc_token {
       service_account_email = var.push_service_account_email
+      audience              = var.push_audience
     }
 
     attributes = {

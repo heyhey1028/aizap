@@ -363,6 +363,7 @@ module "pubsub_webhook" {
   topic_name                 = "aizap-webhook-events"
   subscription_name          = "aizap-webhook-events-sub"
   push_endpoint              = "${module.cloud_run_worker.service_uri}/webhook"
+  push_audience              = module.cloud_run_worker.service_uri
   push_service_account_email = module.sa_worker.email
   ack_deadline_seconds       = 60
   message_retention_duration = "604800s"

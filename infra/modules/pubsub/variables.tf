@@ -27,6 +27,12 @@ variable "push_service_account_email" {
   type        = string
 }
 
+variable "push_audience" {
+  description = "OIDC トークンの audience（Cloud Run のサービス URL）"
+  type        = string
+  default     = null
+}
+
 variable "ack_deadline_seconds" {
   description = "確認応答のデッドライン（秒）"
   type        = number
