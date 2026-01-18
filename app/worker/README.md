@@ -33,7 +33,7 @@ GCP_REGION=<your_region>
 AGENT_ENGINE_RESOURCE_ID=<your_agent_engine_resource_id>
 GCS_MEDIA_BUCKET_NAME=<your_gcs_media_bucket_name>
 LINE_CHANNEL_ACCESS_TOKEN=<your_channel_access_token>
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/aizap?schema=public
+DATABASE_URL=postgresql://postgres@localhost:5432/aizap?schema=public
 ```
 
 - Secret Manager から取得する場合
@@ -83,7 +83,7 @@ docker compose logs -f postgres
 docker compose up -d
 
 cd app/worker
-export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aizap?schema=public"
+export DATABASE_URL="postgresql://postgres@localhost:5432/aizap?schema=public"
 pnpm prisma migrate dev
 ```
 

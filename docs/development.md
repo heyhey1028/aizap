@@ -109,7 +109,7 @@ docker compose logs -f postgres
 docker compose up -d
 
 cd app/worker
-export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aizap?schema=public"
+export DATABASE_URL="postgresql://postgres@localhost:5432/aizap?schema=public"
 pnpm prisma migrate dev
 ```
 
