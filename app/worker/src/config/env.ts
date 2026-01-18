@@ -74,3 +74,17 @@ export function getLineChannelAccessToken(): string {
   }
   return value;
 }
+
+/**
+ * データベース接続 URL を取得する。
+ *
+ * @returns データベース接続 URL
+ * @throws {Error} 環境変数 DATABASE_URL が未設定の場合
+ */
+export function getDatabaseUrl(): string {
+  const value = process.env.DATABASE_URL;
+  if (!value) {
+    throw new Error('DATABASE_URL environment variable is not set');
+  }
+  return value;
+}
