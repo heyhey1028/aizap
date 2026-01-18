@@ -291,6 +291,57 @@ module "cloud_run_worker" {
 }
 
 # -----------------------------------------------------------------------------
+# Cloud Run Jobs (Prisma Migration)
+# -----------------------------------------------------------------------------
+
+resource "google_cloud_run_v2_job" "db_migrate" {
+  name     = "aizap-db-migrate"
+  location = var.region
+
+  template {
+    template {
+      service_account = module.sa_worker.email
+
+      containers {
+        name    = "migrate"
+        image   = var.image_worker
+        command = ["pnpm"]
+        args    = ["prisma", "migrate", "deploy"]
+        env {
+          name  = "DATABASE_URL"
+          value = "postgresql://${module.sa_worker.account_id}@${var.project_id}.iam@localhost:5432/${module.cloud_sql.database_name}"
+        }
+        depends_on = ["cloud-sql-proxy"]
+      }
+
+      containers {
+        name  = "cloud-sql-proxy"
+        image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.20.0"
+        args = [
+          "--port=5432",
+          "--auto-iam-authn",
+          module.cloud_sql.connection_name,
+        ]
+        startup_probe {
+          tcp_socket {
+            port = 5432
+          }
+          period_seconds    = 2
+          timeout_seconds   = 1
+          failure_threshold = 10
+        }
+      }
+    }
+  }
+
+  depends_on = [
+    google_project_service.apis,
+    module.sa_worker,
+    module.cloud_sql,
+  ]
+}
+
+# -----------------------------------------------------------------------------
 # Pub/Sub
 # -----------------------------------------------------------------------------
 
