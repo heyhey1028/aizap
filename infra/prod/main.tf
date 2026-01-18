@@ -326,9 +326,10 @@ resource "google_cloud_run_v2_job" "db_migrate" {
           tcp_socket {
             port = 5432
           }
-          period_seconds    = 2
-          timeout_seconds   = 1
-          failure_threshold = 10
+          initial_delay_seconds = 0
+          period_seconds        = 1
+          timeout_seconds       = 1
+          failure_threshold     = 60
         }
       }
     }

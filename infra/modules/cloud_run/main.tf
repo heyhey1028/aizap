@@ -22,6 +22,9 @@ resource "google_cloud_run_v2_service" "this" {
       name  = "app"
       image = var.image
 
+      # Cloud SQL を使う場合、Proxy の起動を待つ
+      depends_on = var.cloud_sql_connection_name != null && var.cloud_sql_connection_name != "" ? ["cloud-sql-proxy"] : []
+
       dynamic "env" {
         for_each = var.env_vars
         content {
@@ -81,7 +84,7 @@ resource "google_cloud_run_v2_service" "this" {
       }
     }
 
-    # Cloud SQL Auth Proxy sidecar（Cloud SQL を使う場合のみ）
+    # Cloud SQL Auth Proxy sidecar（Cloud SQL を使う場合のみ -> worker service が対象）
     dynamic "containers" {
       for_each = var.cloud_sql_connection_name != null && var.cloud_sql_connection_name != "" ? [var.cloud_sql_connection_name] : []
       content {
@@ -99,6 +102,17 @@ resource "google_cloud_run_v2_service" "this" {
             cpu    = "0.5"
             memory = "256Mi"
           }
+        }
+
+        # サイドカーの起動完了を待ってからメインコンテナを起動
+        startup_probe {
+          tcp_socket {
+            port = 5432
+          }
+          initial_delay_seconds = 0
+          period_seconds        = 1
+          timeout_seconds       = 1
+          failure_threshold     = 60
         }
       }
     }
