@@ -205,3 +205,8 @@ jobs:
             -var=image_bff=${{ steps.image-bff.outputs.uri }} \
             -var=image_worker=${{ steps.image-worker.outputs.uri }} \
             -var=agent_engine_resource_id=${{ steps.agent-engine.outputs.agent_engine_id }}
+
+      - name: Run Prisma migration job
+        if: steps.services.outputs.deploy_worker == 'true'
+        run: |
+          gcloud run jobs execute aizap-db-migrate --region ${{ env.REGION }} --wait
