@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { logger } from '@/utils/logger.js';
 import { decodeWebhookMessage, PubSubPushMessage } from '@/types/index.js';
 import { getAgentEngineClient } from '@/clients/agent-engine.js';
+import { getPrismaClient } from '@/clients/prisma.js';
 import { uploadLineContent } from '@/clients/gcs.js';
 import { getMessageContent, pushMessage } from '@/clients/line.js';
 
@@ -29,14 +30,29 @@ api.post('/webhook', async (c) => {
     logger.info({ userId }, 'Received Pub/Sub message');
 
     const agentClient = getAgentEngineClient();
-    // TODO: Prisma で userId と sessionId を永続化する。
-    // - userId で sessionId を取得
-    // - 無ければ createSession を実行して保存
-    // - 以降は保存済み sessionId を利用
+    const prisma = getPrismaClient();
+
+    // userId で sessionId を永続化して再利用する
+    const storedSession = await prisma.userSession.findUnique({
+      where: { userId },
+    });
+    const sessionId =
+      storedSession?.sessionId ??
+      webhookMessage.sessionId ??
+      (await agentClient.createSession(userId));
+
+    if (!storedSession) {
+      await prisma.userSession.upsert({
+        where: { userId },
+        update: { sessionId },
+        create: { userId, sessionId },
+      });
+      logger.info({ userId, sessionId }, 'Saved new session');
+    }
     if (webhookMessage.type === 'text') {
       const response = await agentClient.query(
         userId,
-        webhookMessage.sessionId,
+        sessionId,
         webhookMessage.text
       );
 
@@ -76,7 +92,7 @@ api.post('/webhook', async (c) => {
       const message = `ユーザーが${label}を送信しました。 GCS: ${gcsUri}`;
       const response = await agentClient.query(
         userId,
-        webhookMessage.sessionId,
+        sessionId,
         message
       );
 
