@@ -103,18 +103,6 @@ resource "google_cloud_run_v2_service" "this" {
             memory = "256Mi"
           }
         }
-
-        # サイドカーの起動完了を待ってからメインコンテナを起動
-        # Cloud Run Service では depends_on と組み合わせて使用
-        startup_probe {
-          tcp_socket {
-            port = 5432
-          }
-          initial_delay_seconds = 0
-          period_seconds        = 2
-          timeout_seconds       = 2
-          failure_threshold     = 30
-        }
       }
     }
   }
