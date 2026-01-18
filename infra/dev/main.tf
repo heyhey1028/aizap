@@ -316,6 +316,7 @@ resource "google_cloud_run_v2_job" "db_migrate" {
         name  = "cloud-sql-proxy"
         image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.20.0"
         args = [
+          "--address=0.0.0.0",
           "--port=5432",
           "--auto-iam-authn",
           module.cloud_sql.connection_name,

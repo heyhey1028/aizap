@@ -89,6 +89,7 @@ resource "google_cloud_run_v2_service" "this" {
         image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.20.0"
 
         args = [
+          "--address=0.0.0.0",
           "--port=5432",
           "--auto-iam-authn",
           containers.value,
