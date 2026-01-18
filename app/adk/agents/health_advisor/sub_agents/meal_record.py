@@ -136,8 +136,8 @@ def confirm_and_record_meal(
         }
 
     if not confirmed:
-        # 保留中のデータをクリア
-        del tool_context.state["pending_meal_analysis"]
+        # 保留中のデータをクリア（delはADKのstateでサポートされない場合があるためNoneを代入）
+        tool_context.state["pending_meal_analysis"] = None
         return {
             "status": "cancelled",
             "message": "記録をキャンセルしました。別の食事を分析しますか？",
@@ -163,8 +163,8 @@ def confirm_and_record_meal(
     meal_records = meal_records + [meal_record]
     tool_context.state["meal_records"] = meal_records
 
-    # 保留中のデータをクリア
-    del tool_context.state["pending_meal_analysis"]
+    # 保留中のデータをクリア（delはADKのstateでサポートされない場合があるためNoneを代入）
+    tool_context.state["pending_meal_analysis"] = None
 
     # 本日の合計カロリーを計算
     today = datetime.now().strftime("%Y-%m-%d")
