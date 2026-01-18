@@ -1,0 +1,16 @@
+services:
+  # ローカル開発専用の PostgreSQL コンテナ
+  # 認証は trust を使用（本番環境には影響しない）
+  postgres:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: aizap
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
