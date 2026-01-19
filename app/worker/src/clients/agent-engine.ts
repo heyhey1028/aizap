@@ -73,7 +73,7 @@ export class AgentEngineClient {
    * @see https://google.github.io/adk-docs/deploy/agent-engine/test/
    */
   private getQueryEndpointUrl(): string {
-    return `https://${this.region}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.region}/reasoningEngines/${this.resourceId}:query`;
+    return `https://${this.region}-aiplatform.googleapis.com/v1/${this.getReasoningEnginePath()}:query`;
   }
 
   /**
@@ -82,7 +82,19 @@ export class AgentEngineClient {
    * @see https://google.github.io/adk-docs/deploy/agent-engine/test/
    */
   private getStreamQueryEndpointUrl(): string {
-    return `https://${this.region}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.region}/reasoningEngines/${this.resourceId}:streamQuery`;
+    return `https://${this.region}-aiplatform.googleapis.com/v1/${this.getReasoningEnginePath()}:streamQuery`;
+  }
+
+  /**
+   * Reasoning Engine のリソースパスを取得する。
+   * AGENT_ENGINE_RESOURCE_ID がフルパスの場合も許容する。
+   */
+  private getReasoningEnginePath(): string {
+    const value = this.resourceId.trim();
+    if (value.startsWith('projects/')) {
+      return value;
+    }
+    return `projects/${this.projectId}/locations/${this.region}/reasoningEngines/${value}`;
   }
 
   private buildCreateSessionRequest(userId: string): CreateSessionRequest {
