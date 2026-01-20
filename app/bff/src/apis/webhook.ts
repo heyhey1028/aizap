@@ -4,7 +4,12 @@ import { logger } from '@/utils/logger.js';
 import { lineMiddleware } from '@/middleware/line.js';
 import { getLineChannelSecret } from '@/config/env.js';
 import { publishWebhookMessage } from '@/clients/pubsub.js';
+import { replyMessage } from '@/clients/line.js';
 import type { WebhookMessage } from '@/types/index.js';
+
+/** スタンプ受信時の返信メッセージ */
+const STICKER_REPLY_MESSAGE =
+  'スタンプありがとう！テキスト、画像、音声、動画で話しかけてね 🎵';
 
 const api: Hono = new Hono();
 
@@ -42,7 +47,21 @@ const handleEvent = async (event: WebhookEvent) => {
     };
 
     await publishWebhookMessage(message);
+    return;
   }
+
+  // スタンプは Agent Engine では処理できないため、即座に返信
+  if (event.message.type === 'sticker') {
+    logger.info({ userId }, 'Received sticker, replying with guidance message');
+    await replyMessage(event.replyToken, STICKER_REPLY_MESSAGE);
+    return;
+  }
+
+  // その他の未対応メッセージタイプはログのみ
+  logger.warn(
+    { userId, messageType: event.message.type },
+    'Unsupported message type received'
+  );
 };
 
 api.post(

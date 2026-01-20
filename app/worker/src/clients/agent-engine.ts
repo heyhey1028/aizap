@@ -40,12 +40,31 @@ type CreateSessionRequest = {
   };
 };
 
+/**
+ * Gemini Content 型（マルチモーダル対応）
+ *
+ * @see https://ai.google.dev/api/caching#Content
+ */
+type Part =
+  | { text: string }
+  | { file_data: { file_uri: string; mime_type: string } };
+
+type Content = {
+  role: 'user' | 'model';
+  parts: Part[];
+};
+
+/**
+ * テキストまたはマルチモーダルメッセージ
+ */
+export type Message = string | Content;
+
 type StreamQueryRequest = {
   class_method: 'async_stream_query';
   input: {
     user_id: string;
     session_id: string;
-    message: string;
+    message: Message;
   };
 };
 
@@ -109,7 +128,7 @@ export class AgentEngineClient {
   private buildStreamQueryRequest(
     userId: string,
     sessionId: string,
-    message: string
+    message: Message
   ): StreamQueryRequest {
     return {
       class_method: 'async_stream_query',
@@ -151,13 +170,13 @@ export class AgentEngineClient {
    *
    * @param userId ユーザー ID
    * @param sessionId セッション ID（未指定の場合は新規作成）
-   * @param message ユーザーからのメッセージ
+   * @param message ユーザーからのメッセージ（テキストまたはマルチモーダル）
    * @returns エージェントからのレスポンステキスト
    */
   async query(
     userId: string,
     sessionId: string | undefined,
-    message: string
+    message: Message
   ): Promise<string> {
     const client = await this.auth.getClient();
 
