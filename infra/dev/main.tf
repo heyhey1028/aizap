@@ -19,6 +19,14 @@ provider "google" {
 }
 
 # -----------------------------------------------------------------------------
+# Data Sources
+# -----------------------------------------------------------------------------
+
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+# -----------------------------------------------------------------------------
 # Local Variables
 # -----------------------------------------------------------------------------
 
@@ -181,6 +189,16 @@ resource "google_storage_bucket_iam_member" "line_media_adk_viewer" {
   member = "serviceAccount:${module.sa_adk_agent.email}"
 
   depends_on = [google_project_service.apis, module.sa_adk_agent, google_storage_bucket.line_media]
+}
+
+# Vertex AI Service Agent が GCS からメディアを読み取るための権限
+# Gemini が file_data で GCS URI を読み取る際に使用される
+resource "google_storage_bucket_iam_member" "line_media_vertex_ai" {
+  bucket = google_storage_bucket.line_media.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-aiplatform.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.apis, google_storage_bucket.line_media]
 }
 
 # -----------------------------------------------------------------------------
