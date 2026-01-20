@@ -48,6 +48,8 @@ resource "google_cloud_run_v2_service" "this" {
           cpu    = "1"
           memory = "512Mi"
         }
+        # コールドスタート時に CPU を一時的に増強（1 vCPU → 2 vCPU）して起動を高速化
+        startup_cpu_boost = true
       }
 
       dynamic "startup_probe" {
