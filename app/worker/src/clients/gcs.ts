@@ -57,7 +57,15 @@ function pad2(value: number): string {
   return value.toString().padStart(2, '0');
 }
 
-function resolveContentType(
+/**
+ * Content-Type を解決する。
+ * null の場合はメッセージタイプに応じたデフォルト値を返す。
+ *
+ * @param messageType メッセージタイプ
+ * @param contentType Content-Type（null の場合はデフォルト値を使用）
+ * @returns 解決された Content-Type
+ */
+export function resolveContentType(
   messageType: UploadLineContentParams['messageType'],
   contentType: string | null
 ): string {
