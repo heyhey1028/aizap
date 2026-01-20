@@ -7,7 +7,7 @@
 import { Hono } from 'hono';
 import { logger } from '@/utils/logger.js';
 import { decodeWebhookMessage, PubSubPushMessage } from '@/types/index.js';
-import { getAgentEngineClient } from '@/clients/agent-engine.js';
+import { getAgentEngineClient, Message } from '@/clients/agent-engine.js';
 import { getPrismaClient } from '@/clients/prisma.js';
 import { uploadLineContent } from '@/clients/gcs.js';
 import { getMessageContent, pushMessage } from '@/clients/line.js';
@@ -89,7 +89,14 @@ api.post('/webhook', async (c) => {
       } else if (webhookMessage.type === 'audio') {
         label = '音声';
       }
-      const message = `ユーザーが${label}を送信しました。 GCS: ${gcsUri}`;
+
+      const message: Message = {
+        role: 'user',
+        parts: [
+          { text: `ユーザーが${label}を送信しました。` },
+          { file_data: { file_uri: gcsUri, mime_type: contentType } },
+        ],
+      };
       const response = await agentClient.query(userId, sessionId, message);
 
       logger.info({ userId }, 'Got Agent Engine response');
