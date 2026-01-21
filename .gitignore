@@ -73,3 +73,6 @@ dist/
 *.tsbuildinfo
 .eslintcache
 .pnpm-debug.log*
+
+# Claude
+settings.local.json
