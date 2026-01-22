@@ -13,10 +13,15 @@ import { uploadLineContent, resolveContentType } from '@/clients/gcs.js';
 import { getMessageContent, pushMessage } from '@/clients/line.js';
 
 const api: Hono = new Hono();
-const RESET_MESSAGE = 'セッションをリセットしました。続けて話しかけてください。';
+const RESET_MESSAGE =
+  'セッションをリセットしました。続けて話しかけてください。';
 const RESET_PATTERN =
   /^(リセット|セッションリセット|最初から|はじめから|やり直し)(して|してください|お願い)?$/;
-const RESET_COMMANDS = new Set(['reset', 'session reset', 'session reset please']);
+const RESET_COMMANDS = new Set([
+  'reset',
+  'session reset',
+  'session reset please',
+]);
 
 const isResetCommand = (text: string): boolean => {
   const normalized = text.trim().toLowerCase();
