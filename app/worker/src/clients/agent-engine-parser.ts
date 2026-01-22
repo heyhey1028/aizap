@@ -1,32 +1,39 @@
 /**
- * Agent Engine レスポンスの抽出ユーティリティ
+ * Agent Engine streamQuery レスポンスから最終応答テキストを抽出する。
+ *
+ * streamQuery はイベント列（改行区切り JSON）を返すため、
+ * ADK の is_final_response() 相当のロジックで最終イベントを判定する。
+ *
+ * @see https://google.github.io/adk-docs/events/
+ * @see https://github.com/google/adk-python - Event.is_final_response()
  */
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+type EventLike = Record<string, unknown>;
+type PartLike = Record<string, unknown>;
+
 // Agent Engine のレスポンスは複数の形があるため、parts を共通抽出する。
-const extractPartsFromCandidates = (candidates: unknown[]): unknown[] => {
-  const parts: unknown[] = [];
+const extractPartsFromCandidates = (candidates: unknown[]): PartLike[] => {
+  const parts: PartLike[] = [];
   for (const candidate of candidates) {
     if (!isRecord(candidate)) continue;
     const candidateContent = candidate.content;
     if (isRecord(candidateContent) && Array.isArray(candidateContent.parts)) {
-      parts.push(...candidateContent.parts);
+      parts.push(...(candidateContent.parts as PartLike[]));
     }
   }
   return parts;
 };
 
-const extractPartsFromContainer = (
-  container: Record<string, unknown>
-): unknown[] => {
+const extractPartsFromContainer = (container: EventLike): PartLike[] => {
   if (Array.isArray(container.parts)) {
-    return container.parts;
+    return container.parts as PartLike[];
   }
   const content = container.content;
   if (isRecord(content) && Array.isArray(content.parts)) {
-    return content.parts;
+    return content.parts as PartLike[];
   }
   const candidates = container.candidates;
   if (Array.isArray(candidates)) {
@@ -35,7 +42,7 @@ const extractPartsFromContainer = (
   return [];
 };
 
-const extractParts = (value: unknown): unknown[] => {
+const extractParts = (value: unknown): PartLike[] => {
   if (!isRecord(value)) return [];
   const directParts = extractPartsFromContainer(value);
   if (directParts.length > 0) return directParts;
@@ -54,6 +61,7 @@ const extractParts = (value: unknown): unknown[] => {
 
 const FUNCTION_RESPONSE_TEXT_KEYS = [
   'message',
+  'result',
   'text',
   'report',
   'summary',
@@ -76,21 +84,105 @@ const extractFunctionResponseText = (value: unknown): string[] => {
   return [JSON.stringify(response)];
 };
 
-export const extractTextValues = (value: unknown): string[] => {
-  const parts = extractParts(value);
-  if (parts.length === 0) return [];
+const extractTextParts = (parts: PartLike[]): string[] =>
+  parts
+    .map((part) => (typeof part.text === 'string' ? part.text : null))
+    .filter((text): text is string => text !== null);
 
-  const texts: string[] = [];
+const extractFunctionResponseParts = (parts: PartLike[]): string[] => {
+  const responses: string[] = [];
   for (const part of parts) {
-    if (!isRecord(part)) continue;
-    if (typeof part.text === 'string') {
-      texts.push(part.text);
-      continue;
-    }
     const functionResponse = part.function_response;
     if (isRecord(functionResponse)) {
-      texts.push(...extractFunctionResponseText(functionResponse));
+      responses.push(...extractFunctionResponseText(functionResponse));
     }
   }
-  return texts;
+  return responses;
+};
+
+const hasFunctionCalls = (parts: PartLike[]): boolean =>
+  parts.some((part) => part.function_call !== undefined);
+
+const hasFunctionResponses = (parts: PartLike[]): boolean =>
+  parts.some((part) => part.function_response !== undefined);
+
+const hasTrailingCodeExecutionResult = (parts: PartLike[]): boolean => {
+  if (parts.length === 0) return false;
+  const lastPart = parts[parts.length - 1];
+  return lastPart.code_execution_result !== undefined;
+};
+
+const getSkipSummarization = (event: EventLike): boolean => {
+  const actions = event.actions;
+  if (!isRecord(actions)) return false;
+  const skip = actions.skip_summarization ?? actions.skipSummarization;
+  return skip === true;
+};
+
+const getLongRunningToolIds = (event: EventLike): unknown[] => {
+  const ids =
+    event.longRunningToolIds ??
+    event.long_running_tool_ids ??
+    event.longRunningToolIDs ??
+    event.long_running_tool_IDs;
+  return Array.isArray(ids) ? ids : [];
+};
+
+const isFinalResponseEvent = (event: EventLike): boolean => {
+  const parts = extractParts(event);
+  const isPartial = event.partial === true;
+  if (getSkipSummarization(event) || getLongRunningToolIds(event).length > 0) {
+    return true;
+  }
+  return (
+    !hasFunctionCalls(parts) &&
+    !hasFunctionResponses(parts) &&
+    !isPartial &&
+    !hasTrailingCodeExecutionResult(parts)
+  );
+};
+
+const parseStreamEvents = (responseText: string): EventLike[] =>
+  responseText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      try {
+        return JSON.parse(line) as unknown;
+      } catch {
+        return null;
+      }
+    })
+    .filter((event): event is EventLike => isRecord(event));
+
+export const extractFinalTextFromStream = (responseText: string): string => {
+  const events = parseStreamEvents(responseText);
+  let accumulatedText = '';
+  let finalText: string | null = null;
+
+  for (const event of events) {
+    const parts = extractParts(event);
+    const textParts = extractTextParts(parts);
+    if (event.partial === true && textParts.length > 0) {
+      accumulatedText += textParts.join('');
+      continue;
+    }
+    if (!isFinalResponseEvent(event)) {
+      continue;
+    }
+
+    if (textParts.length > 0) {
+      finalText = `${accumulatedText}${textParts.join('')}`.trim();
+      accumulatedText = '';
+      continue;
+    }
+
+    const functionResponses = extractFunctionResponseParts(parts);
+    if (functionResponses.length > 0) {
+      finalText = functionResponses.join('\n').trim();
+    }
+  }
+
+  return finalText ?? '';
 };

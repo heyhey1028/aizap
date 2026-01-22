@@ -10,7 +10,7 @@ import {
   getAgentEngineResourceId,
 } from '@/config/env.js';
 import { logger } from '@/utils/logger.js';
-import { extractTextValues } from '@/clients/agent-engine-parser.js';
+import { extractFinalTextFromStream } from '@/clients/agent-engine-parser.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -191,29 +191,22 @@ export class AgentEngineClient {
 
   /**
    * 改行区切りレスポンスからテキストを抽出する。
-   * streamQuery は SSE ではなく、改行区切り JSON を返す。
    *
+   * Agent Engine の streamQuery はイベント列を改行区切り JSON で返す。
+   * 中間イベント（function_call, function_response）を除外し、
+   * 最終イベントの text パーツのみを抽出する。
+   *
+   * @see agent-engine-parser.ts - パースロジックの詳細
    * @param responseText Agent Engine のレスポンス
    * @returns 抽出されたテキスト
    */
   private parseStreamResponse(responseText: string): string {
-    const lines = responseText.split('\n').filter((line) => line.trim() !== '');
-    const texts: string[] = [];
-
-    for (const line of lines) {
-      try {
-        const parsed = JSON.parse(line) as unknown;
-        texts.push(...extractTextValues(parsed));
-      } catch (error) {
-        logger.warn({ err: error }, 'Failed to parse Agent Engine event');
-      }
-    }
-
-    if (texts.length === 0) {
+    const finalText = extractFinalTextFromStream(responseText);
+    if (finalText.length === 0) {
       logger.warn('Agent Engine response has no text');
     }
 
-    return texts.join('\n');
+    return finalText;
   }
 
   // --- SSE 利用時の参考実装（未使用） ---
