@@ -13,6 +13,23 @@ import { uploadLineContent, resolveContentType } from '@/clients/gcs.js';
 import { getMessageContent, pushMessage } from '@/clients/line.js';
 
 const api: Hono = new Hono();
+const RESET_MESSAGE =
+  'セッションをリセットしました。続けて話しかけてください。';
+const RESET_PATTERN =
+  /^(リセット|セッションリセット|最初から|はじめから|やり直し)(して|してください|お願い)?$/;
+const RESET_COMMANDS = new Set([
+  'reset',
+  'session reset',
+  'session reset please',
+]);
+
+const isResetCommand = (text: string): boolean => {
+  const normalized = text.trim().toLowerCase();
+  if (RESET_COMMANDS.has(normalized)) {
+    return true;
+  }
+  return RESET_PATTERN.test(text.trim());
+};
 
 /**
  * Pub/Sub Push ハンドラ
@@ -31,6 +48,16 @@ api.post('/webhook', async (c) => {
 
     const agentClient = getAgentEngineClient();
     const prisma = getPrismaClient();
+
+    if (webhookMessage.type === 'text' && isResetCommand(webhookMessage.text)) {
+      await prisma.userSession.deleteMany({ where: { userId } });
+      logger.info({ userId }, 'Session reset requested');
+
+      await pushMessage(userId, RESET_MESSAGE);
+
+      logger.info({ userId }, 'Webhook processed (reset)');
+      return c.json({ status: 'success', reset: true }, 200);
+    }
 
     // userId で sessionId を永続化して再利用する
     const storedSession = await prisma.userSession.findUnique({
