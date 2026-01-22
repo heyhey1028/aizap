@@ -1,0 +1,8 @@
+[project]
+name = "aizap-adk"
+version = "0.1.0"
+description = "aizap の ADK エージェント"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "google-cloud-aiplatform[adk,agent_engines]>=1.133.0",
+]

@@ -168,12 +168,15 @@ cd aizap/app/adk
 ### 2. セットアップ
 
 ```bash
-# 仮想環境を作成・有効化
-python -m venv .venv
-source .venv/bin/activate
+# uv をインストール
+brew install uv
+# または: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# ADK をインストール
-pip install google-adk
+# 仮想環境を作成
+uv venv
+
+# 依存関係をインストール
+uv sync
 
 # GCP 認証
 gcloud auth application-default login
@@ -187,10 +190,10 @@ export GOOGLE_CLOUD_LOCATION=asia-northeast1
 ### 3. ADK を起動
 
 ```bash
-adk web agents/health_advisor
+uv run adk web agents
 ```
 
-ブラウザで http://localhost:8000 にアクセス
+ブラウザで http://localhost:8000 にアクセスし、ドロップダウンから `health_advisor` を選択
 
 ## ドキュメント
 
