@@ -101,7 +101,11 @@ jobs:
         run: |
           cat > .agent_engine_config.json << EOF
           {
-            "service_account": "aizap-adk-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
+            "service_account": "aizap-adk-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com",
+            "env_vars": {
+              "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY": "true",
+              "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true"
+            }
           }
           EOF
           echo "Generated .agent_engine_config.json:"
