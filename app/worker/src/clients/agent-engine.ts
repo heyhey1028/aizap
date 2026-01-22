@@ -10,22 +10,9 @@ import {
   getAgentEngineResourceId,
 } from '@/config/env.js';
 import { logger } from '@/utils/logger.js';
+import { extractTextValues } from '@/clients/agent-engine-parser.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const extractTextValues = (value: unknown): string[] => {
-  if (!isRecord(value)) return [];
-  const content = value.content;
-  if (!isRecord(content)) return [];
-  const parts = content.parts;
-  if (!Array.isArray(parts)) return [];
-  return parts
-    .filter((part) => isRecord(part) && typeof part.text === 'string')
-    .map((part) => part.text);
-};
 
 type CreateSessionResponse = {
   output: {

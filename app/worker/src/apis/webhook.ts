@@ -22,6 +22,8 @@ const RESET_COMMANDS = new Set([
   'session reset',
   'session reset please',
 ]);
+const EMPTY_RESPONSE_MESSAGE =
+  'すみません、現在応答を生成できませんでした。もう一度お試しください。';
 
 const isResetCommand = (text: string): boolean => {
   const normalized = text.trim().toLowerCase();
@@ -29,6 +31,14 @@ const isResetCommand = (text: string): boolean => {
     return true;
   }
   return RESET_PATTERN.test(text.trim());
+};
+
+const normalizeResponseText = (response: string, userId: string): string => {
+  if (response.trim().length > 0) {
+    return response;
+  }
+  logger.warn({ userId }, 'Agent Engine returned empty response');
+  return EMPTY_RESPONSE_MESSAGE;
 };
 
 /**
@@ -85,7 +95,8 @@ api.post('/webhook', async (c) => {
 
       logger.info({ userId }, 'Got Agent Engine response');
 
-      await pushMessage(userId, response);
+      const message = normalizeResponseText(response, userId);
+      await pushMessage(userId, message);
 
       logger.info({ userId }, 'Webhook processed');
       return c.json({ status: 'success' }, 200);
@@ -129,7 +140,8 @@ api.post('/webhook', async (c) => {
 
       logger.info({ userId }, 'Got Agent Engine response');
 
-      await pushMessage(userId, response);
+      const reply = normalizeResponseText(response, userId);
+      await pushMessage(userId, reply);
 
       logger.info({ userId }, 'Webhook processed');
       return c.json({ status: 'success' }, 200);
