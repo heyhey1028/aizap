@@ -378,6 +378,7 @@ module "pubsub_webhook" {
   source = "../modules/pubsub"
 
   project_id                 = var.project_id
+  project_number             = data.google_project.project.number
   topic_name                 = "aizap-webhook-events"
   subscription_name          = "aizap-webhook-events-sub"
   push_endpoint              = "${module.cloud_run_worker.service_uri}/webhook"

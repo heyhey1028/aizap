@@ -7,6 +7,11 @@ variable "project_id" {
   type        = string
 }
 
+variable "project_number" {
+  description = "GCP プロジェクト番号（Pub/Sub Service Agent の IAM 設定に使用）"
+  type        = string
+}
+
 variable "topic_name" {
   description = "Pub/Sub トピック名"
   type        = string

@@ -39,13 +39,10 @@ resource "google_pubsub_subscription" "this" {
 }
 
 # Pub/Sub が OIDC トークンを発行できるようにする
-data "google_project" "this" {
-  project_id = var.project_id
-}
-
+# NOTE: project_number は親モジュールから渡すことで、data source の (known after apply) 問題を回避
 resource "google_service_account_iam_member" "pubsub_token_creator" {
   service_account_id = "projects/${var.project_id}/serviceAccounts/${var.push_service_account_email}"
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+  member             = "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
