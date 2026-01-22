@@ -66,8 +66,9 @@ const extractFunctionResponseText = (value: unknown): string[] => {
   if (typeof response === 'string') return [response];
   if (!isRecord(response)) return [];
 
-  const candidates = FUNCTION_RESPONSE_TEXT_KEYS.map((key) => response[key])
-    .filter((candidate): candidate is string => typeof candidate === 'string');
+  const candidates = FUNCTION_RESPONSE_TEXT_KEYS.map(
+    (key) => response[key]
+  ).filter((candidate): candidate is string => typeof candidate === 'string');
 
   if (candidates.length > 0) {
     return candidates;
