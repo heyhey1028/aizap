@@ -202,6 +202,16 @@ resource "google_storage_bucket_iam_member" "line_media_vertex_ai" {
   depends_on = [google_project_service.apis, google_storage_bucket.line_media]
 }
 
+# Vertex AI Service Agent に serviceusage.serviceUsageConsumer を付与
+# Agent Engine 内部の OpenTelemetry スパンエクスポートに必要
+resource "google_project_iam_member" "vertex_ai_service_usage" {
+  project = var.project_id
+  role    = "roles/serviceusage.serviceUsageConsumer"
+  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-aiplatform.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.apis]
+}
+
 # -----------------------------------------------------------------------------
 # Artifact Registry
 # -----------------------------------------------------------------------------
