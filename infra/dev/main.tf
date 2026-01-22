@@ -42,6 +42,7 @@ locals {
     "cloudresourcemanager.googleapis.com",
     "secretmanager.googleapis.com",
     "sqladmin.googleapis.com",
+    "telemetry.googleapis.com",
   ]
 }
 
