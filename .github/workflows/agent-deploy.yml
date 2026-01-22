@@ -108,7 +108,7 @@ jobs:
           cat .agent_engine_config.json
 
       - name: Deploy ${{ matrix.agent }} to Agent Engine
-        working-directory: app/adk
+        working-directory: app/adk/agents
         run: |
           echo "Deploying agent: ${{ matrix.agent }} to ${{ steps.env.outputs.environment }}"
 
@@ -120,10 +120,10 @@ jobs:
             echo "Creating new agent"
           fi
 
-          uv run adk deploy agent_engine \
+          uv run --project .. adk deploy agent_engine \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --staging_bucket=gs://${{ env.PROJECT_ID }}-staging \
             --display_name="aizap-${{ matrix.agent }}" \
             $AGENT_ENGINE_ID_OPT \
-            agents/${{ matrix.agent }}
+            ${{ matrix.agent }}
