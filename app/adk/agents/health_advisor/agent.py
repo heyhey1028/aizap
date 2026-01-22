@@ -56,9 +56,9 @@ root_agent = Agent(
 - 複数の機能が関係する場合は、順番にツールを呼び出す
 """,
     tools=[
-        AgentTool(agent=goal_setting_agent, skip_summarization=True),
-        AgentTool(agent=pre_meal_advisor_agent, skip_summarization=True),
-        AgentTool(agent=meal_record_agent, skip_summarization=True),
+        AgentTool(agent=goal_setting_agent),
+        AgentTool(agent=pre_meal_advisor_agent),
+        AgentTool(agent=meal_record_agent),
     ],
 )
 
