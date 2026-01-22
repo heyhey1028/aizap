@@ -80,9 +80,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install ADK
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        working-directory: app/adk
         run: |
-          pip install "google-cloud-aiplatform[adk,agent_engines]>=1.133.0"
+          uv sync --locked
 
       - name: Get existing Agent Engine ID
         id: existing-agent
@@ -104,7 +108,7 @@ jobs:
           cat .agent_engine_config.json
 
       - name: Deploy ${{ matrix.agent }} to Agent Engine
-        working-directory: app/adk/agents
+        working-directory: app/adk
         run: |
           echo "Deploying agent: ${{ matrix.agent }} to ${{ steps.env.outputs.environment }}"
 
@@ -116,10 +120,10 @@ jobs:
             echo "Creating new agent"
           fi
 
-          adk deploy agent_engine \
+          uv run adk deploy agent_engine \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --staging_bucket=gs://${{ env.PROJECT_ID }}-staging \
             --display_name="aizap-${{ matrix.agent }}" \
             $AGENT_ENGINE_ID_OPT \
-            ${{ matrix.agent }}
+            agents/${{ matrix.agent }}

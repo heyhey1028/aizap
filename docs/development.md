@@ -15,12 +15,15 @@
 git clone https://github.com/heyhey1028/aizap.git
 cd aizap/app/adk
 
-# 仮想環境を作成・有効化
-python -m venv .venv
-source .venv/bin/activate
+# uv をインストール
+brew install uv
+# または: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# ADK をインストール
-pip install google-adk
+# 仮想環境を作成
+uv venv
+
+# 依存関係をインストール
+uv sync
 
 # GCP 認証
 gcloud auth application-default login
@@ -35,24 +38,24 @@ export GOOGLE_CLOUD_LOCATION=asia-northeast1
 
 | コマンド | 説明 | セッション |
 |---------|------|-----------|
-| `adk web` | ブラウザベース開発 UI | InMemorySessionService |
-| `adk run` | ターミナル対話型テスト | InMemorySessionService |
-| `adk api_server` | ローカル REST API サーバー | InMemorySessionService |
+| `uv run adk web` | ブラウザベース開発 UI | InMemorySessionService |
+| `uv run adk run` | ターミナル対話型テスト | InMemorySessionService |
+| `uv run adk api_server` | ローカル REST API サーバー | InMemorySessionService |
 
 ### 実行例
 
 ```bash
 cd app/adk
 
-# ブラウザで開発 UI を起動
-adk web agents/health_advisor
+# ブラウザで開発 UI を起動（ドロップダウンからエージェントを選択）
+uv run adk web agents
 # => http://localhost:8000 でアクセス
 
 # ターミナルで対話
-adk run agents/health_advisor
+uv run adk run agents/health_advisor
 
 # REST API サーバーを起動
-adk api_server agents/health_advisor
+uv run adk api_server agents/health_advisor
 ```
 
 ## Agent Engine デプロイ
@@ -65,15 +68,15 @@ Agent Engine は自動的に VertexAiSessionService を使用してセッショ�
 ### 手動デプロイ（ADK CLI）
 
 ```bash
-cd app/adk/agents
+cd app/adk
 
 # staging_bucket は Terraform で作成済み: gs://${PROJECT_ID}-staging
-adk deploy agent_engine \
+uv run adk deploy agent_engine \
   --project=aizap-dev \
   --region=asia-northeast1 \
   --staging_bucket=gs://aizap-dev-staging \
   --display_name="aizap-health-advisor" \
-  health_advisor
+  agents/health_advisor
 ```
 
 ### GitHub Actions からデプロイ（推奨）

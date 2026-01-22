@@ -1,2 +1,0 @@
-# Agent Engine デプロイ用依存関係
-google-cloud-aiplatform[adk,agent_engines]>=1.133.0
