@@ -7,10 +7,15 @@ datasource db {
 }
 
 model UserSession {
-  userId    String   @id @map("user_id")
-  sessionId String   @map("session_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid()) @map("id")
+  userId      String   @map("user_id")
+  displayName String   @map("display_name")
+  sessionId   String   @map("session_id")
+  secretValue String   @map("secret_value")
+  secretSalt  String   @map("secret_salt")
+  goal        String   @map("goal")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("user_sessions")
 }
