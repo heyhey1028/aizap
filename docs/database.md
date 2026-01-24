@@ -1,15 +1,5 @@
 # データベース設計
 
-## 概要
-
-aizap では PostgreSQL を使用し、Prisma ORM でデータアクセスを行います。
-
-| 項目 | 詳細 |
-|------|------|
-| DBMS | PostgreSQL 17 |
-| ORM | Prisma 7.x |
-| インフラ | Google Cloud SQL |
-
 ## ER図
 
 ```mermaid
@@ -22,7 +12,7 @@ erDiagram
 
     users {
         uuid id PK
-        text line_user_id UK "LINE user_id"
+        text user_id UK "LINE user_id"
         text display_name
         text session_id "Agent Engine session"
         text secret_value "encrypted secret"
@@ -48,7 +38,7 @@ erDiagram
         uuid id PK
         uuid goal_id FK
         decimal value
-        timestamp recorded_at
+        timestamp logged_at
         timestamp created_at
     }
 
@@ -71,7 +61,7 @@ erDiagram
         uuid habit_id FK
         decimal value
         text note
-        timestamp performed_at
+        timestamp logged_at
         timestamp created_at
     }
 ```
@@ -85,7 +75,7 @@ erDiagram
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
 | id | UUID | PK | ユーザーID |
-| line_user_id | TEXT | UNIQUE, NOT NULL | LINE の user_id |
+| user_id | TEXT | UNIQUE, NOT NULL | LINE の user_id |
 | display_name | TEXT | NOT NULL | 表示名 |
 | session_id | TEXT | | Agent Engine セッションID |
 | secret_value | TEXT | | 暗号化されたシークレット |
@@ -132,13 +122,14 @@ erDiagram
 ### goal_progress
 
 目標に対する進捗（現在地）を記録する。
+goalがquantitativeの場合のみ利用。
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
 | id | UUID | PK | 進捗ID |
 | goal_id | UUID | FK(goals), NOT NULL | 目標ID |
 | value | DECIMAL | NOT NULL | 記録値 |
-| recorded_at | TIMESTAMP | NOT NULL | 記録日時 |
+| logged_at | TIMESTAMP | NOT NULL | 記録日時 |
 | created_at | TIMESTAMP | NOT NULL | 作成日時 |
 
 ### habits
@@ -166,8 +157,6 @@ erDiagram
 | `exercise` | 運動 |
 | `meal` | 食事 |
 | `sleep` | 睡眠 |
-| `hydration` | 水分補給 |
-| `meditation` | 瞑想 |
 
 ※ 上記に当てはまらない場合は、AIがユーザーの入力から適切な値を設定する。
 
@@ -181,7 +170,7 @@ erDiagram
 | habit_id | UUID | FK(habits), NOT NULL | 習慣ID |
 | value | DECIMAL | | 実績値 |
 | note | TEXT | | メモ（「朝食」「朝ラン」など） |
-| performed_at | TIMESTAMP | NOT NULL | 実施日時 |
+| logged_at | TIMESTAMP | NOT NULL | 記録日時 |
 | created_at | TIMESTAMP | NOT NULL | 作成日時 |
 
 ## リレーション
@@ -282,15 +271,3 @@ goals:
 - 習慣（habits）には頻度目標（`target_frequency`）を設定可能
 - 習慣は目標に紐づけることもできるし、単独でも管理できる
 - 「今週何回達成できたか」などの振り返りに活用
-
-### Agent Engine セッション
-
-- `users.session_id` で Agent Engine のセッションを管理
-- 1ユーザー = 1セッションの関係
-
-### 論理削除
-
-- 目標・習慣は物理削除せず、`status` による論理削除を採用
-- **goals**: `abandoned` ステータスが論理削除に相当
-- **habits**: `archived` ステータスが論理削除に相当
-- これにより、関連する `goal_progress` や `habit_logs` のデータを保持したまま、ユーザーの画面からは非表示にできる
