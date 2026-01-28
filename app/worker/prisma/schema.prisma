@@ -11,6 +11,18 @@ model UserSession {
   sessionId String   @map("session_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  goals     Goal[]
 
   @@map("user_sessions")
+}
+
+model Goal {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  details   String
+  habits    String
+  createdAt DateTime    @default(now()) @map("created_at")
+  user      UserSession @relation(fields: [userId], references: [userId])
+
+  @@map("goals")
 }
