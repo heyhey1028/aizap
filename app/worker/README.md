@@ -26,9 +26,6 @@ pnpm install
 ```
 
 2. `.env` ファイルを作成
-```bash
-cp -p .env.sample .env
-```
 
 ```bash
 GCP_PROJECT_ID=<your_project_id>
