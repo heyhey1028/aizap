@@ -3,7 +3,7 @@
  *
  * LINE Push API を使用してユーザーにメッセージを送信する。
  */
-import { messagingApi, TextMessage } from '@line/bot-sdk';
+import { messagingApi } from '@line/bot-sdk';
 import { Readable } from 'node:stream';
 import { getLineChannelAccessToken } from '@/config/env.js';
 import { logger } from '@/utils/logger.js';
@@ -66,27 +66,26 @@ export async function getMessageContent(
 }
 
 /**
- * ユーザーに Push メッセージを送信する。
+ * Reply API でテキストメッセージを返信する。
  *
  * @param userId 送信先の LINE ユーザー ID
- * @param text 送信するテキスト
+ * @param replyToken 返信用トークン
+ * @param text 返信するテキスト
  */
-export async function pushMessage(userId: string, text: string): Promise<void> {
+export async function replyMessage(
+  userId: string,
+  replyToken: string,
+  text: string
+): Promise<void> {
   const client = getLineClient();
-
-  const message: TextMessage = {
-    type: 'text',
-    text,
-  };
-
   try {
-    await client.pushMessage({
-      to: userId,
-      messages: [message],
+    await client.replyMessage({
+      replyToken,
+      messages: [{ type: 'text', text }],
     });
-    logger.info({ userId }, 'Sent push message to LINE');
+    logger.info({ userId }, 'Sent reply message to LINE');
   } catch (error) {
-    logger.error({ userId, err: error }, 'Failed to send push message');
+    logger.error({ userId, err: error }, 'Failed to send reply message');
     throw error;
   }
 }

@@ -10,7 +10,7 @@ import { decodeWebhookMessage, PubSubPushMessage } from '@/types/index.js';
 import { getAgentEngineClient, Message } from '@/clients/agent-engine.js';
 import { getPrismaClient } from '@/clients/prisma.js';
 import { uploadLineContent, resolveContentType } from '@/clients/gcs.js';
-import { getMessageContent, pushMessage } from '@/clients/line.js';
+import { getMessageContent, replyMessage } from '@/clients/line.js';
 
 const api: Hono = new Hono();
 const RESET_MESSAGE =
@@ -63,7 +63,7 @@ api.post('/webhook', async (c) => {
       await prisma.userSession.deleteMany({ where: { userId } });
       logger.info({ userId }, 'Session reset requested');
 
-      await pushMessage(userId, RESET_MESSAGE);
+      await replyMessage(userId, webhookMessage.replyToken, RESET_MESSAGE);
 
       logger.info({ userId }, 'Webhook processed (reset)');
       return c.json({ status: 'success', reset: true }, 200);
@@ -96,7 +96,7 @@ api.post('/webhook', async (c) => {
       logger.info({ userId }, 'Got Agent Engine response');
 
       const message = normalizeResponseText(response, userId);
-      await pushMessage(userId, message);
+      await replyMessage(userId, webhookMessage.replyToken, message);
 
       logger.info({ userId }, 'Webhook processed');
       return c.json({ status: 'success' }, 200);
@@ -141,7 +141,7 @@ api.post('/webhook', async (c) => {
       logger.info({ userId }, 'Got Agent Engine response');
 
       const reply = normalizeResponseText(response, userId);
-      await pushMessage(userId, reply);
+      await replyMessage(userId, webhookMessage.replyToken, reply);
 
       logger.info({ userId }, 'Webhook processed');
       return c.json({ status: 'success' }, 200);
