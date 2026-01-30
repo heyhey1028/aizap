@@ -48,5 +48,4 @@ model ExerciseLog {
   @@map("exercise_logs")
   @@index([userId, recordedAt(sort: Desc)])
   @@index([userId, exerciseName, recordedAt(sort: Desc)])
-  @@index([userId, category])
 }

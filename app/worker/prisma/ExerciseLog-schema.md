@@ -119,7 +119,6 @@ type SetRecord = {
 | Primary Key | `id` | レコードの一意識別 |
 | Index 1 | `user_id`, `recorded_at DESC` | ユーザーの最新記録を高速取得 |
 | Index 2 | `user_id`, `exercise_name`, `recorded_at DESC` | 特定種目の履歴を高速取得 |
-| Index 3 | `user_id`, `category` | カテゴリ別の集計を高速化 |
 
 ## リレーション
 
