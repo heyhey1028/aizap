@@ -7,11 +7,12 @@ datasource db {
 }
 
 model UserSession {
-  userId    String   @id @map("user_id")
-  sessionId String   @map("session_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  goals     Goal[]
+  userId       String        @id @map("user_id")
+  sessionId    String        @map("session_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  goals        Goal[]
+  exerciseLogs ExerciseLog[]
 
   @@map("user_sessions")
 }
@@ -25,4 +26,27 @@ model Goal {
   user      UserSession @relation(fields: [userId], references: [userId])
 
   @@map("goals")
+}
+
+model ExerciseLog {
+  id            String      @id @default(uuid())
+  userId        String      @map("user_id")
+  exerciseName  String      @map("exercise_name")
+  sets          Json
+  category      String?
+  muscleGroup   String?     @map("muscle_group")
+  totalSets     Int         @map("total_sets")
+  totalReps     Int?        @map("total_reps")
+  totalDuration Int?        @map("total_duration")
+  totalDistance Float?      @map("total_distance")
+  totalVolume   Float?      @map("total_volume")
+  note          String?
+  recordedAt    DateTime    @default(now()) @map("recorded_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  user          UserSession @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("exercise_logs")
+  @@index([userId, recordedAt(sort: Desc)])
+  @@index([userId, exerciseName, recordedAt(sort: Desc)])
+  @@index([userId, category])
 }
