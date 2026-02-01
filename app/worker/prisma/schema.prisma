@@ -13,10 +13,7 @@ model UserSession {
   updatedAt    DateTime      @updatedAt @map("updated_at")
   goals        Goal[]
   exerciseLogs ExerciseLog[]
-<<<<<<< HEAD
   habits       Habit[]
-=======
->>>>>>> 900f334c765e7f6ca858b3fa370587bab0702158
 
   @@map("user_sessions")
 }
