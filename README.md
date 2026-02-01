@@ -178,13 +178,16 @@ uv venv
 # 依存関係をインストール
 uv sync
 
-# GCP 認証
-gcloud auth application-default login
+# GCP 認証（サービスアカウントのなりすましでローカル（開発者経由）から Cloud SQL にアクセス可能）
+gcloud auth application-default login \
+  --impersonate-service-account=aizap-adk-sa@aizap-dev.iam.gserviceaccount.com
 
 # 環境変数を設定
 export GOOGLE_GENAI_USE_VERTEXAI=1
 export GOOGLE_CLOUD_PROJECT=aizap-dev
 export GOOGLE_CLOUD_LOCATION=asia-northeast1
+export CLOUD_SQL_INSTANCE=aizap-dev:asia-northeast1:aizap-postgres-dev
+export DB_NAME=aizap
 ```
 
 ### 3. ADK を起動
