@@ -13,6 +13,7 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .user_session import UserSession
+    from .habit import Habit
 
 
 class Goal(Base):
@@ -36,6 +37,9 @@ class Goal(Base):
 
     # リレーション
     user: Mapped["UserSession"] = relationship("UserSession", back_populates="goals")
+    habit_details: Mapped[list["Habit"]] = relationship(
+        "Habit", back_populates="goal"
+    )
 
     def __repr__(self) -> str:
         return f"<Goal(id={self.id}, user_id={self.user_id})>"
