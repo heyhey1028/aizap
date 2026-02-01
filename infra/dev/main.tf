@@ -133,6 +133,7 @@ module "sa_adk_agent" {
     "roles/aiplatform.user",
     "roles/cloudsql.client",
     "roles/cloudsql.instanceUser",
+    "roles/serviceusage.serviceUsageConsumer",
   ]
 
   depends_on = [google_project_service.apis]
