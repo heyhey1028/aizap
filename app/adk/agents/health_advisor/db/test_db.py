@@ -3,13 +3,12 @@
 各テーブルに対して CRUD 操作をテストし、最後にテストデータを削除する。
 
 使用方法:
-    cd app/adk
-    uv sync
+    cd app/adk/agents/health_advisor
     gcloud auth application-default login \
         --impersonate-service-account=aizap-adk-sa@aizap-dev.iam.gserviceaccount.com
     export CLOUD_SQL_INSTANCE=aizap-dev:asia-northeast1:aizap-postgres-dev
     export DB_NAME=aizap
-    uv run python db/test_db.py
+    uv run --project ../.. python db/test_db.py
 """
 
 import asyncio

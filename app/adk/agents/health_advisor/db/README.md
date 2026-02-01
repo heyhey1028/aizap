@@ -46,8 +46,9 @@ db/
 ### 基本的な使い方
 
 ```python
-from db.config import get_async_session
-from db.repositories import GoalRepository
+# sub_agents/ 内のファイルからのインポート例
+from ..db.config import get_async_session
+from ..db.repositories import GoalRepository
 
 async def my_tool(tool_context: ToolContext) -> dict:
     user_id = tool_context.user_id
@@ -79,7 +80,8 @@ async def my_tool(tool_context: ToolContext) -> dict:
 ### エラーハンドリング
 
 ```python
-from utils.logger import get_logger
+# sub_agents/ 内のファイルからのインポート例
+from ..logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -107,6 +109,8 @@ async def my_tool(tool_context: ToolContext) -> dict:
 サービスアカウントのなりすましを使って ADK サービスアカウントの権限で接続します。
 
 ```bash
+cd app/adk/agents/health_advisor
+
 # 1. サービスアカウントのなりすましでユーザーアカウント（開発者）が ADC を設定
 gcloud auth application-default login \
   --impersonate-service-account=aizap-adk-sa@aizap-dev.iam.gserviceaccount.com
@@ -116,7 +120,7 @@ export CLOUD_SQL_INSTANCE=aizap-dev:asia-northeast1:aizap-postgres-dev
 export DB_NAME=aizap
 
 # 3. テスト実行
-uv run python db/test_db.py
+uv run --project ../.. python db/test_db.py
 ```
 
 ## 注意事項
