@@ -133,9 +133,21 @@ module "sa_adk_agent" {
     "roles/aiplatform.user",
     "roles/cloudsql.client",
     "roles/cloudsql.instanceUser",
+    "roles/serviceusage.serviceUsageConsumer",
   ]
 
   depends_on = [google_project_service.apis]
+}
+
+# 開発者がローカルから ADK サービスアカウントを偽装できるようにする
+# gcloud auth application-default login --impersonate-service-account=aizap-adk-sa@PROJECT.iam.gserviceaccount.com
+# 注意: allAuthenticatedUsers は GCP にログインしている全ユーザーが偽装可能
+resource "google_service_account_iam_member" "adk_agent_token_creator" {
+  service_account_id = module.sa_adk_agent.id
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "allAuthenticatedUsers"
+
+  depends_on = [module.sa_adk_agent]
 }
 
 # -----------------------------------------------------------------------------

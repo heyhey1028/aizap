@@ -25,13 +25,18 @@ uv venv
 # 依存関係をインストール
 uv sync
 
-# GCP 認証
-gcloud auth application-default login
+# GCP 認証（サービスアカウント偽装でローカルから Cloud SQL にアクセス可能）
+gcloud auth application-default login \
+  --impersonate-service-account=aizap-adk-sa@aizap-dev.iam.gserviceaccount.com
 
 # 環境変数を設定
 export GOOGLE_GENAI_USE_VERTEXAI=1
 export GOOGLE_CLOUD_PROJECT=aizap-dev
 export GOOGLE_CLOUD_LOCATION=asia-northeast1
+
+# DB アクセスする場合は追加で設定
+export CLOUD_SQL_INSTANCE=aizap-dev:asia-northeast1:aizap-postgres-dev
+export DB_NAME=aizap
 ```
 
 ## ADK コマンド
@@ -57,6 +62,19 @@ uv run adk run agents/health_advisor
 # REST API サーバーを起動
 uv run adk api_server agents/health_advisor
 ```
+
+### ADK Web UI の使い方
+
+ブラウザで http://localhost:8000 にアクセスすると、開発用 UI が表示されます。
+
+| 項目 | 説明 |
+|------|------|
+| Agent ドロップダウン | テストするエージェントを選択 |
+| SESSION ID | 現在のセッション ID（自動生成） |
+| **USER ID** | ユーザー ID（デフォルト: `user`、クリックして変更可能） |
+| + New Session | 新しいセッションを開始 |
+
+**ヒント**: `USER ID` 欄はクリックして任意の値に変更できます。DB テスト時は `local-test-user` などに変更すると、本番データと区別しやすくなります。
 
 ## Agent Engine デプロイ
 
