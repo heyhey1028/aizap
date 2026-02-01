@@ -5,4 +5,8 @@ description = "aizap の ADK エージェント"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "google-cloud-aiplatform[adk,agent_engines]>=1.133.0",
+  "sqlalchemy[asyncio]>=2.0.46",
+  "asyncpg>=0.31.0",
+  "cloud-sql-python-connector[asyncpg]>=1.20.0",
+  "structlog>=25.5.0",
 ]
