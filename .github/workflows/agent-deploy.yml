@@ -118,8 +118,9 @@ jobs:
       - name: Generate requirements.txt
         working-directory: app/adk/agents/${{ matrix.agent }}
         run: |
-          # DB 関連の依存関係を含む requirements.txt を生成
+          # ADK と DB 関連の依存関係を含む requirements.txt を生成
           cat > requirements.txt << EOF
+          google-cloud-aiplatform[adk,agent_engines]>=1.133.0
           sqlalchemy[asyncio]>=2.0.46
           asyncpg>=0.31.0
           cloud-sql-python-connector[asyncpg]>=1.20.0
