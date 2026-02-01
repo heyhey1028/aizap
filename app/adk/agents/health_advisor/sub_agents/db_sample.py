@@ -8,31 +8,17 @@
 1. user_id の取得: `tool_context.user_id` を使用
 2. セッション管理: `async with get_async_session() as session:` でコンテキストマネージャー使用
 3. リポジトリパターン: `Repository` クラスを通じて CRUD 操作
-4. 構造化ログ: `utils.logger` の `get_logger` を使用
+4. 構造化ログ: `logger` モジュールの `get_logger` を使用
 5. エラーハンドリング: try-except でエラーをキャッチしてログ出力
 """
-
-import os
-import sys
-
-# app/adk をパスに追加（db, utils モジュールを参照するため）
-_adk_root = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-if _adk_root not in sys.path:
-    sys.path.insert(0, _adk_root)
 
 from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 
-from db.config import get_async_session
-from db.repositories import UserSessionRepository, GoalRepository, ExerciseLogRepository
-
-# ローカル開発では utils.logger、Agent Engine では shared_utils.logger を使用
-try:
-    from shared_utils.logger import get_logger
-except ImportError:
-    from utils.logger import get_logger
+# 相対インポート（health_advisor/ 内の db/ と logger.py を参照）
+from ..db.config import get_async_session
+from ..db.repositories import UserSessionRepository, GoalRepository, ExerciseLogRepository
+from ..logger import get_logger
 
 logger = get_logger(__name__)
 
