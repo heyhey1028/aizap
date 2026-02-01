@@ -134,9 +134,9 @@ class HabitRepository(BaseRepository[Habit]):
         target_weight: float | None = None,
         meal_type: str | None = None,
         target_calories: int | None = None,
-        target_protein_g: float | None = None,
-        target_carbs_g: float | None = None,
-        target_fat_g: float | None = None,
+        target_proteins: int | None = None,
+        target_fats: int | None = None,
+        target_carbohydrates: int | None = None,
         meal_guidelines: str | None = None,
         days_of_week: list[str] | None = None,
         time_of_day: str | None = None,
@@ -168,9 +168,9 @@ class HabitRepository(BaseRepository[Habit]):
             target_weight: 目標重量（kg）
             meal_type: 食事タイプ（食事習慣の場合）
             target_calories: 目標カロリー
-            target_protein_g: 目標タンパク質（g）
-            target_carbs_g: 目標炭水化物（g）
-            target_fat_g: 目標脂質（g）
+            target_proteins: 目標タンパク質（g）
+            target_fats: 目標脂質（g）
+            target_carbohydrates: 目標炭水化物（g）
             meal_guidelines: 食事ガイドライン
             days_of_week: 曜日リスト（["monday", "wednesday"]等）
             time_of_day: 時刻（"HH:MM"形式）
@@ -204,9 +204,9 @@ class HabitRepository(BaseRepository[Habit]):
             target_weight=target_weight,
             meal_type=meal_type,
             target_calories=target_calories,
-            target_protein_g=target_protein_g,
-            target_carbs_g=target_carbs_g,
-            target_fat_g=target_fat_g,
+            target_proteins=target_proteins,
+            target_fats=target_fats,
+            target_carbohydrates=target_carbohydrates,
             meal_guidelines=meal_guidelines,
             frequency=frequency,
             days_of_week=days_of_week,

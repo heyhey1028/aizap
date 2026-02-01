@@ -31,9 +31,9 @@
 | `targetWeight` | Float | ✓ | - | `target_weight` | 目標重量（kg単位、筋トレの場合） | `60.0`, `80.0`, `null` |
 | `mealType` | String | ✓ | - | `meal_type` | 食事の種類（`habitType="meal"` の場合）※Phase 2 | `"breakfast"`, `"lunch"`, `"dinner"`, `"snack"`, `null` |
 | `targetCalories` | Int | ✓ | - | `target_calories` | 目標カロリー（kcal）※Phase 2 | `400`, `600`, `null` |
-| `targetProteinG` | Float | ✓ | - | `target_protein_g` | 目標タンパク質（g）※Phase 2 | `30.0`, `40.0`, `null` |
-| `targetCarbsG` | Float | ✓ | - | `target_carbs_g` | 目標炭水化物（g）※Phase 2 | `50.0`, `80.0`, `null` |
-| `targetFatG` | Float | ✓ | - | `target_fat_g` | 目標脂質（g）※Phase 2 | `15.0`, `20.0`, `null` |
+| `targetProteins` | Int | ✓ | - | `target_proteins` | 目標タンパク質（g）※Phase 2 | `30`, `40`, `null` |
+| `targetFats` | Int | ✓ | - | `target_fats` | 目標脂質（g）※Phase 2 | `15`, `20`, `null` |
+| `targetCarbohydrates` | Int | ✓ | - | `target_carbohydrates` | 目標炭水化物（g）※Phase 2 | `50`, `80`, `null` |
 | `mealGuidelines` | String | ✓ | - | `meal_guidelines` | 食事ガイドライン（例: "野菜中心", "低糖質"）※Phase 2 | `"野菜中心"`, `"低糖質"`, `null` |
 | `frequency` | String | ✗ | - | `frequency` | 実行頻度 | `"daily"`, `"weekly"`, `"custom"` |
 | `daysOfWeek` | Json | ✓ | - | `days_of_week` | 実行曜日（JSON配列） | `["monday", "wednesday", "friday"]`, `null` |
@@ -166,9 +166,9 @@ type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 's
 
   mealType: null,
   targetCalories: null,
-  targetProteinG: null,
-  targetCarbsG: null,
-  targetFatG: null,
+  targetProteins: null,
+  targetFats: null,
+  targetCarbohydrates: null,
   mealGuidelines: null,
 
   frequency: "weekly",
@@ -211,9 +211,9 @@ type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 's
 
   mealType: null,
   targetCalories: null,
-  targetProteinG: null,
-  targetCarbsG: null,
-  targetFatG: null,
+  targetProteins: null,
+  targetFats: null,
+  targetCarbohydrates: null,
   mealGuidelines: null,
 
   frequency: "weekly",

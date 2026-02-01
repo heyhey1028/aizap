@@ -57,9 +57,9 @@ class Habit(Base):
     # 食事習慣の詳細（habit_type="meal"の場合）※Phase 2で本格実装
     meal_type: Mapped[str | None] = mapped_column(String, nullable=True)
     target_calories: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    target_protein_g: Mapped[float | None] = mapped_column(Float, nullable=True)
-    target_carbs_g: Mapped[float | None] = mapped_column(Float, nullable=True)
-    target_fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    target_proteins: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_fats: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_carbohydrates: Mapped[int | None] = mapped_column(Integer, nullable=True)
     meal_guidelines: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # スケジュール設定

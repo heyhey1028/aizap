@@ -78,12 +78,12 @@ model Habit {
   targetWeight    Float?  @map("target_weight")
 
   // 食事習慣の詳細（habitType="meal"の場合）※Phase 2で本格実装
-  mealType        String? @map("meal_type")
-  targetCalories  Int?    @map("target_calories")
-  targetProteinG  Float?  @map("target_protein_g")
-  targetCarbsG    Float?  @map("target_carbs_g")
-  targetFatG      Float?  @map("target_fat_g")
-  mealGuidelines  String? @map("meal_guidelines")
+  mealType            String? @map("meal_type")
+  targetCalories      Int?    @map("target_calories")
+  targetProteins      Int?    @map("target_proteins")
+  targetFats          Int?    @map("target_fats")
+  targetCarbohydrates Int?    @map("target_carbohydrates")
+  mealGuidelines      String? @map("meal_guidelines")
 
   // スケジュール設定
   frequency  String   @map("frequency")
