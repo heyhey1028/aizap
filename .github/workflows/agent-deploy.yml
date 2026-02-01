@@ -105,6 +105,16 @@ jobs:
             echo "instance=${{ env.PROJECT_ID }}:${{ env.REGION }}:aizap-postgres-dev" >> $GITHUB_OUTPUT
           fi
 
+      - name: Copy shared modules to agent directory
+        working-directory: app/adk
+        run: |
+          # db/ と utils/ をエージェントディレクトリにコピー (Agent Engine にデプロイするため）
+          echo "Copying shared modules to agents/${{ matrix.agent }}/"
+          cp -r db agents/${{ matrix.agent }}/
+          cp -r utils agents/${{ matrix.agent }}/
+          echo "Copied: db/, utils/"
+          ls -la agents/${{ matrix.agent }}/
+
       - name: Generate .agent_engine_config.json
         working-directory: app/adk/agents/${{ matrix.agent }}
         run: |
