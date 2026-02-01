@@ -138,6 +138,15 @@ module "sa_adk_agent" {
   depends_on = [google_project_service.apis]
 }
 
+# 開発者がローカルから ADK サービスアカウントになりすませるようにする
+resource "google_service_account_iam_member" "adk_agent_token_creator" {
+  service_account_id = module.sa_adk_agent.id
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "allAuthenticatedUsers"
+
+  depends_on = [module.sa_adk_agent]
+}
+
 # -----------------------------------------------------------------------------
 # Cloud Storage (Agent Engine Staging)
 # -----------------------------------------------------------------------------
