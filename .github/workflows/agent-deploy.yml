@@ -96,6 +96,15 @@ jobs:
           region: ${{ env.REGION }}
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Get Cloud SQL instance name
+        id: cloud-sql
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" = "prod" ]; then
+            echo "instance=${{ env.PROJECT_ID }}:${{ env.REGION }}:aizap-postgres-prod" >> $GITHUB_OUTPUT
+          else
+            echo "instance=${{ env.PROJECT_ID }}:${{ env.REGION }}:aizap-postgres-dev" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate .agent_engine_config.json
         working-directory: app/adk/agents/${{ matrix.agent }}
         run: |
@@ -104,7 +113,10 @@ jobs:
             "service_account": "aizap-adk-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com",
             "env_vars": {
               "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY": "true",
-              "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true"
+              "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true",
+              "CLOUD_SQL_INSTANCE": "${{ steps.cloud-sql.outputs.instance }}",
+              "DB_NAME": "aizap",
+              "DB_USER": "aizap-adk-sa@${{ env.PROJECT_ID }}.iam"
             }
           }
           EOF
