@@ -108,11 +108,12 @@ jobs:
       - name: Copy shared modules to agent directory
         working-directory: app/adk
         run: |
-          # db/ と utils/ をエージェントディレクトリにコピー (Agent Engine にデプロイするため）
+          # db/ をエージェントディレクトリにコピー（Agent Engine にデプロイするため）
+          # 注意: utils/ は shared_utils としてコピー（health_advisor/utils.py と衝突を避けるため）
           echo "Copying shared modules to agents/${{ matrix.agent }}/"
           cp -r db agents/${{ matrix.agent }}/
-          cp -r utils agents/${{ matrix.agent }}/
-          echo "Copied: db/, utils/"
+          cp -r utils agents/${{ matrix.agent }}/shared_utils
+          echo "Copied: db/, shared_utils/"
           ls -la agents/${{ matrix.agent }}/
 
       - name: Generate requirements.txt

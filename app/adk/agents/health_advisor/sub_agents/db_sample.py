@@ -27,7 +27,12 @@ from google.adk.tools import ToolContext
 
 from db.config import get_async_session
 from db.repositories import UserSessionRepository, GoalRepository, ExerciseLogRepository
-from utils.logger import get_logger
+
+# ローカル開発では utils.logger、Agent Engine では shared_utils.logger を使用
+try:
+    from shared_utils.logger import get_logger
+except ImportError:
+    from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
