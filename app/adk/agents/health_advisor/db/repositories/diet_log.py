@@ -50,32 +50,6 @@ class DietLogRepository(BaseRepository[DietLog]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_user_and_meal_type(
-        self,
-        user_id: str,
-        meal_type: str,
-        limit: int = 10,
-    ) -> list[DietLog]:
-        """ユーザー ID と食事種別で食事記録を取得する。
-
-        Args:
-            user_id: ユーザー ID
-            meal_type: 食事種別 ("breakfast", "lunch", "dinner", "snack")
-            limit: 取得件数の上限
-
-        Returns:
-            DietLog のリスト（記録日時の降順）
-        """
-        stmt = (
-            select(DietLog)
-            .where(DietLog.user_id == user_id)
-            .where(DietLog.meal_type == meal_type)
-            .order_by(DietLog.recorded_at.desc())
-            .limit(limit)
-        )
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())
-
     async def get_by_date_range(
         self,
         user_id: str,
