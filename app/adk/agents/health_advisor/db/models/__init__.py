@@ -9,10 +9,12 @@ from .base import Base
 from .user_session import UserSession
 from .goal import Goal
 from .exercise_log import ExerciseLog
+from .diet_log import DietLog
 
 __all__ = [
     "Base",
     "UserSession",
     "Goal",
     "ExerciseLog",
+    "DietLog",
 ]
