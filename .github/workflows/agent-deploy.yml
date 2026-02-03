@@ -155,5 +155,6 @@ jobs:
             --region=${{ env.REGION }} \
             --staging_bucket=gs://${{ env.PROJECT_ID }}-staging \
             --display_name="aizap-${{ matrix.agent }}" \
+            --adk_app_object=app \
             $AGENT_ENGINE_ID_OPT \
             ${{ matrix.agent }}

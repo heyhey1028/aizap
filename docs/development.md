@@ -89,11 +89,13 @@ Agent Engine は自動的に VertexAiSessionService を使用してセッショ�
 cd app/adk
 
 # staging_bucket は Terraform で作成済み: gs://${PROJECT_ID}-staging
+# --adk_app_object=app で VertexAiSessionService を有効化（会話履歴の維持に必要）
 uv run adk deploy agent_engine \
   --project=aizap-dev \
   --region=asia-northeast1 \
   --staging_bucket=gs://aizap-dev-staging \
   --display_name="aizap-health-advisor" \
+  --adk_app_object=app \
   agents/health_advisor
 ```
 
