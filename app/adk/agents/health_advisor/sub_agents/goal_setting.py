@@ -4,26 +4,51 @@ from typing import List
 from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 
+from ..db.config import get_async_session
+from ..db.repositories import GoalRepository
+from ..logger import get_logger
+
+logger = get_logger(__name__)
+
 
 # tool
-def get_user_health_goal(tool_context: ToolContext) -> dict:
-    """ユーザーの健康目標を取得します。
+async def get_user_health_goal(tool_context: ToolContext) -> dict:
+    """ユーザーの健康目標をDBから取得します。
 
-    Session Stateから健康目標を読み取ります。
+    DBから健康目標を読み取ります。
     設定されていない場合は、未設定であることを返します。
     """
-    health_goal = tool_context.state.get("health_goal")
+    user_id = tool_context.user_id
 
-    if health_goal is None:
+    try:
+        async with get_async_session() as session:
+            repo = GoalRepository(session)
+            goal = await repo.get_by_user_id(user_id)
+
+            if goal is None:
+                logger.info("健康目標が見つかりません", user_id=user_id)
+                return {
+                    "status": "not_set",
+                    "message": "健康目標がまだ設定されていません。目標を設定しましょう！",
+                }
+
+            logger.info("健康目標を取得しました", user_id=user_id, goal_id=goal.id)
+            return {
+                "status": "success",
+                "health_goal": {
+                    "id": goal.id,
+                    "details": goal.details,
+                    "habits": goal.habits,
+                    "created_at": goal.created_at.isoformat(),
+                },
+            }
+
+    except Exception as e:
+        logger.error("健康目標の取得に失敗", user_id=user_id, error=str(e))
         return {
-            "status": "not_set",
-            "message": "健康目標がまだ設定されていません。目標を設定しましょう！",
+            "status": "error",
+            "message": "健康目標の取得中にエラーが発生しました。",
         }
-
-    return {
-        "status": "success",
-        "health_goal": health_goal,
-    }
 
 
 def get_goal_setting_history(tool_context: ToolContext) -> dict:
@@ -78,12 +103,12 @@ def add_goal_setting_history(
     }
 
 
-def set_user_health_goal(
+async def set_user_health_goal(
     tool_context: ToolContext,
     details: str,
     habits: str,
 ) -> dict:
-    """ユーザーの健康目標を正式に設定します。
+    """ユーザーの健康目標をDBに保存します。
 
     全てのhabits（運動・食事・睡眠）がユーザーと合意できた後に使用します。
     設定後、会話履歴はクリアされます。
@@ -93,21 +118,39 @@ def set_user_health_goal(
         details: 目標の詳細（例：「3ヶ月で5kg減量して体脂肪率を20%以下にする」）
         habits: 運動・食事・睡眠の行動計画を箇条書きで記述（例：「- 運動：毎日3km走る\n- 食事：1日の摂取カロリーを1800kcal以下に抑える\n- 睡眠：毎日23時までに寝る」）
     """
-    health_goal = {
-        "details": details,
-        "habits": habits,
-        "created_at": datetime.now().isoformat(),
-    }
+    user_id = tool_context.user_id
 
-    tool_context.state["health_goal"] = health_goal
-    # 会話履歴をクリア
-    tool_context.state["goal_setting_history"] = []
+    try:
+        async with get_async_session() as session:
+            repo = GoalRepository(session)
+            goal = await repo.create_goal(
+                user_id=user_id,
+                details=details,
+                habits=habits,
+            )
 
-    return {
-        "status": "success",
-        "message": "健康目標を設定しました",
-        "health_goal": health_goal,
-    }
+            logger.info("健康目標を保存しました", user_id=user_id, goal_id=goal.id)
+
+            # 会話履歴をクリア
+            tool_context.state["goal_setting_history"] = []
+
+            return {
+                "status": "success",
+                "message": "健康目標を設定しました",
+                "health_goal": {
+                    "id": goal.id,
+                    "details": goal.details,
+                    "habits": goal.habits,
+                    "created_at": goal.created_at.isoformat(),
+                },
+            }
+
+    except Exception as e:
+        logger.error("健康目標の保存に失敗", user_id=user_id, error=str(e))
+        return {
+            "status": "error",
+            "message": "健康目標の保存中にエラーが発生しました。",
+        }
 
 
 # sub agent
