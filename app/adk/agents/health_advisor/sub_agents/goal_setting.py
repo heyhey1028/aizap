@@ -51,58 +51,6 @@ async def get_user_health_goal(tool_context: ToolContext) -> dict:
         }
 
 
-def get_goal_setting_history(tool_context: ToolContext) -> dict:
-    """目標設定に関する会話履歴を取得します。
-
-    前回までの会話内容を確認し、文脈を把握するために使用します。
-    最初に必ず呼び出してください。
-    """
-    history = tool_context.state.get("goal_setting_history", [])
-
-    if not history:
-        return {
-            "status": "no_history",
-            "message": "まだ会話履歴がありません。新しく目標設定を始めましょう。",
-        }
-
-    return {
-        "status": "success",
-        "history": history,
-    }
-
-
-def add_goal_setting_history(
-    tool_context: ToolContext,
-    user_message: str,
-    assistant_response: str,
-) -> dict:
-    """目標設定に関する会話内容を履歴に追加します。
-
-    ユーザーとのやり取りを保存して、次回の会話で文脈を維持します。
-
-    Args:
-        tool_context: ADKが提供するToolContext。
-        user_message: ユーザーの発言内容
-        assistant_response: アシスタントの応答内容
-    """
-    history: List[dict] = tool_context.state.get("goal_setting_history", [])
-
-    history.append(
-        {
-            "user": user_message,
-            "assistant": assistant_response,
-            "timestamp": datetime.now().isoformat(),
-        }
-    )
-
-    tool_context.state["goal_setting_history"] = history
-
-    return {
-        "status": "success",
-        "message": "会話履歴を保存しました",
-    }
-
-
 async def set_user_health_goal(
     tool_context: ToolContext,
     details: str,
@@ -172,11 +120,9 @@ goalもhabitsもエージェントが一方的に決めてはいけない。必�
 このエージェントは複数回呼び出されるため、会話履歴を使って文脈を維持する必要がある。
 
 ### 開始時（必須）
-**応答を生成する前に、必ず最初に`get_goal_setting_history`を呼び出す。**
 履歴がある場合は、その内容を踏まえて会話を続ける。
 
 ### 終了時（必須）
-**ユーザーへの応答を返す前に、必ず`add_goal_setting_history`で今回のやり取りを保存する。**
 - user_message: ユーザーが言ったこと
 - assistant_response: 自分が返す応答内容
 
@@ -209,8 +155,6 @@ goalもhabitsもエージェントが一方的に決めてはいけない。必�
 全てのhabits（運動・食事・睡眠）がユーザーと合意できたら、`set_user_health_goal`で正式に保存する。
 
 ## 使用するツール
-- `get_goal_setting_history`: 前回までの会話履歴を取得（最初に必ず呼び出す）
-- `add_goal_setting_history`: 会話内容を履歴に保存（やり取りの最後に呼び出す）
 - `get_user_health_goal`: 正式に設定された健康目標を確認
 - `set_user_health_goal`: 健康目標を正式に設定（全てのhabitsがユーザーと合意できてから使用）
 
@@ -238,9 +182,7 @@ set_user_health_goalで保存する際は以下の形式で箇条書きにする
 - 一般的な目安: 男性 2,000〜2,400kcal / 女性 1,600〜2,000kcal
 
 ## 対話のポイント
-- 最初に`get_goal_setting_history`で前回の会話を確認する
 - goalもhabitsも勝手に決めず、必ずユーザーに確認する
-- やり取りの最後に`add_goal_setting_history`で会話を保存する
 - 選択肢を提示して選んでもらう形にする
 - 無理のない現実的な提案をする
 - ユーザーの意見を尊重する
@@ -252,8 +194,6 @@ set_user_health_goalで保存する際は以下の形式で箇条書きにする
 """,
     tools=[
         get_user_health_goal,
-        get_goal_setting_history,
-        add_goal_setting_history,
         set_user_health_goal,
     ],
 )
