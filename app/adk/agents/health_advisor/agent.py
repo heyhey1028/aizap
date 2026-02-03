@@ -5,6 +5,7 @@ from .sub_agents import (
     goal_setting_agent,
     pre_meal_advisor_agent,
     meal_record_agent,
+    db_sample_agent,
 )
 
 # root agent
@@ -42,10 +43,16 @@ root_agent = Agent(
    - 画像・動画・音声などのメディア入力（必ずここ）
    - メディア入力の場合は、内容を簡潔に言語化してツールに渡す
 
+4. **db_sample_agent** を使うケース（開発用）:
+   - DB アクセスのテスト
+   - 「セッション情報を確認して」
+   - 「目標を保存して」
+   - 「運動記録をテストして」
+
 ## 直接対応するケース
 - 挨拶（こんにちは等）には自分で応答してOK
 - 自己紹介も自分で行う
-- 何ができるか聞かれたら、上記3つの機能を説明
+- 何ができるか聞かれたら、上記の機能を説明
 
 ## 対話のトーン
 - フレンドリーで励ましのある口調
@@ -60,6 +67,7 @@ root_agent = Agent(
         AgentTool(agent=goal_setting_agent),
         AgentTool(agent=pre_meal_advisor_agent),
         AgentTool(agent=meal_record_agent),
+        AgentTool(agent=db_sample_agent),
     ],
 )
 
