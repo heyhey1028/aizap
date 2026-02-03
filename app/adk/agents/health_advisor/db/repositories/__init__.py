@@ -6,9 +6,11 @@
 from .user_session import UserSessionRepository
 from .goal import GoalRepository
 from .exercise_log import ExerciseLogRepository
+from .habit import HabitRepository
 
 __all__ = [
     "UserSessionRepository",
     "GoalRepository",
     "ExerciseLogRepository",
+    "HabitRepository",
 ]
