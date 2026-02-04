@@ -1,18 +1,7 @@
-/**
- * LINE Messaging API クライアント
- *
- * LINE Reply API の公式型（ReplyMessageRequest / TextMessage / Sender）を
- * そのまま受け渡しして送信する。
- */
 import { messagingApi } from '@line/bot-sdk';
 import { Readable } from 'node:stream';
 import { getLineChannelAccessToken } from '@/config/env.js';
 import { logger } from '@/utils/logger.js';
-
-/** Reply API のリクエスト型（公式） */
-export type ReplyMessageRequest = Parameters<
-  messagingApi.MessagingApiClient['replyMessage']
->[0];
 
 let lineClient: messagingApi.MessagingApiClient | null = null;
 
@@ -71,6 +60,10 @@ export async function getMessageContent(
   };
 }
 
+export type ReplyMessageRequest = Parameters<
+  messagingApi.MessagingApiClient['replyMessage']
+>[0];
+
 /**
  * Reply API で返信する。
  * 公式の ReplyMessageRequest をそのまま受け取り送信する。
@@ -83,6 +76,7 @@ export async function replyMessage(
   userId: string
 ): Promise<void> {
   const client = getLineClient();
+
   try {
     await client.replyMessage(request);
     logger.info({ userId }, 'Sent reply message to LINE');
