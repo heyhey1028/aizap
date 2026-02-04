@@ -11,6 +11,7 @@ import { getAgentEngineClient, Message } from '@/clients/agent-engine.js';
 import { getPrismaClient } from '@/clients/prisma.js';
 import { uploadLineContent, resolveContentType } from '@/clients/gcs.js';
 import { getMessageContent, replyMessage } from '@/clients/line.js';
+import type { Sender } from '@line/bot-sdk';
 
 const api: Hono = new Hono();
 const RESET_MESSAGE =
@@ -59,11 +60,22 @@ api.post('/webhook', async (c) => {
     const agentClient = getAgentEngineClient();
     const prisma = getPrismaClient();
 
+    const sender: Sender = {
+      name: 'Aizap',
+      iconUrl: 'https://example.com/icon.png',
+    };
+
     if (webhookMessage.type === 'text' && isResetCommand(webhookMessage.text)) {
       await prisma.userSession.deleteMany({ where: { userId } });
       logger.info({ userId }, 'Session reset requested');
 
-      await replyMessage(userId, webhookMessage.replyToken, RESET_MESSAGE);
+      await replyMessage(
+        {
+          replyToken: webhookMessage.replyToken,
+          messages: [{ type: 'text', text: RESET_MESSAGE }],
+        },
+        userId
+      );
 
       logger.info({ userId }, 'Webhook processed (reset)');
       return c.json({ status: 'success', reset: true }, 200);
@@ -86,17 +98,28 @@ api.post('/webhook', async (c) => {
       });
       logger.info({ userId, sessionId }, 'Saved new session');
     }
+
     if (webhookMessage.type === 'text') {
-      const response = await agentClient.query(
-        userId,
-        sessionId,
-        webhookMessage.text
-      );
+      const message: Message = webhookMessage.text;
+
+      const response = await agentClient.query(userId, sessionId, message);
 
       logger.info({ userId }, 'Got Agent Engine response');
 
-      const message = normalizeResponseText(response, userId);
-      await replyMessage(userId, webhookMessage.replyToken, message);
+      const reply = normalizeResponseText(response, userId);
+      await replyMessage(
+        {
+          replyToken: webhookMessage.replyToken,
+          messages: [
+            {
+              type: 'text',
+              text: reply,
+              sender: { name: sender?.name, iconUrl: sender?.iconUrl },
+            },
+          ],
+        },
+        userId
+      );
 
       logger.info({ userId }, 'Webhook processed');
       return c.json({ status: 'success' }, 200);
@@ -136,12 +159,25 @@ api.post('/webhook', async (c) => {
           { file_data: { file_uri: gcsUri, mime_type: mimeType } },
         ],
       };
+
       const response = await agentClient.query(userId, sessionId, message);
 
       logger.info({ userId }, 'Got Agent Engine response');
 
       const reply = normalizeResponseText(response, userId);
-      await replyMessage(userId, webhookMessage.replyToken, reply);
+      await replyMessage(
+        {
+          replyToken: webhookMessage.replyToken,
+          messages: [
+            {
+              type: 'text',
+              text: reply,
+              sender: { name: sender?.name, iconUrl: sender?.iconUrl },
+            },
+          ],
+        },
+        userId
+      );
 
       logger.info({ userId }, 'Webhook processed');
       return c.json({ status: 'success' }, 200);
