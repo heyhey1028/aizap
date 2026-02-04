@@ -38,3 +38,15 @@ export async function replyMessage(
     messages: [{ type: 'text', text }],
   });
 }
+
+/**
+ * 読み込み中アニメーションを表示する
+ * @param userId LINE ユーザー ID
+ */
+export async function startLoading(userId: string): Promise<void> {
+  const client = getLineClient();
+  await client.showLoadingAnimation({
+    chatId: userId,
+    loadingSeconds: 60,
+  });
+}
