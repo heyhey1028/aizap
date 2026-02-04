@@ -14,7 +14,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@prisma/client": ["node_modules/@prisma/client"]
     }
   },
   "include": ["src/**/*"],
