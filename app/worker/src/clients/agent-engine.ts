@@ -10,7 +10,11 @@ import {
   getAgentEngineResourceId,
 } from '@/config/env.js';
 import { logger } from '@/utils/logger.js';
-import { extractFinalTextFromStream } from '@/clients/agent-engine-parser.js';
+import {
+  extractFinalTextFromStream,
+  parseStructuredReply,
+  type StructuredAgentReply,
+} from '@/clients/agent-engine-parser.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -45,6 +49,12 @@ type Content = {
  * テキストまたはマルチモーダルメッセージ
  */
 export type Message = string | Content;
+
+/**
+ * Agent Engine のクエリ応答（root Agent の output_schema 対応）。
+ * text: ユーザーに返すメッセージ本文。senderId: 送信元 ID（数値、任意）。
+ */
+export type AgentQueryResponse = StructuredAgentReply;
 
 type StreamQueryRequest = {
   class_method: 'async_stream_query';
@@ -158,13 +168,13 @@ export class AgentEngineClient {
    * @param userId ユーザー ID
    * @param sessionId セッション ID（未指定の場合は新規作成）
    * @param message ユーザーからのメッセージ（テキストまたはマルチモーダル）
-   * @returns エージェントからのレスポンステキスト
+   * @returns エージェントからの構造化レスポンス（text と senderId）
    */
   async query(
     userId: string,
     sessionId: string | undefined,
     message: Message
-  ): Promise<string> {
+  ): Promise<AgentQueryResponse> {
     const client = await this.auth.getClient();
 
     const endpoint = this.getStreamQueryEndpointUrl();
@@ -190,23 +200,21 @@ export class AgentEngineClient {
   }
 
   /**
-   * 改行区切りレスポンスからテキストを抽出する。
+   * 改行区切りレスポンスから構造化レスポンスを抽出する。
    *
    * Agent Engine の streamQuery はイベント列を改行区切り JSON で返す。
-   * 中間イベント（function_call, function_response）を除外し、
-   * 最終イベントの text パーツのみを抽出する。
+   * 最終イベントの text を抽出し、JSON の場合は text と senderId にパースする。
    *
    * @see agent-engine-parser.ts - パースロジックの詳細
    * @param responseText Agent Engine のレスポンス
-   * @returns 抽出されたテキスト
+   * @returns { text, senderId? }
    */
-  private parseStreamResponse(responseText: string): string {
+  private parseStreamResponse(responseText: string): AgentQueryResponse {
     const finalText = extractFinalTextFromStream(responseText);
     if (finalText.length === 0) {
       logger.warn('Agent Engine response has no text');
     }
-
-    return finalText;
+    return parseStructuredReply(finalText);
   }
 
   // --- SSE 利用時の参考実装（未使用） ---

@@ -1,3 +1,5 @@
+from pydantic import BaseModel, Field
+
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool
 
@@ -7,6 +9,16 @@ from .sub_agents import (
     meal_record_agent,
     db_sample_agent,
 )
+
+
+class RootAgentOutput(BaseModel):
+    """root Agent の最終出力スキーマ。テキストと senderId を返す。"""
+
+    text: str = Field(description="ユーザーへの応答メッセージ（従来の string 出力）。")
+    sender_id: int = Field(description="送信元 ID（数値）。", alias="senderId")
+
+    model_config = {"populate_by_name": True}
+
 
 # root agent
 root_agent = Agent(
@@ -59,6 +71,14 @@ root_agent = Agent(
 - 専門家として信頼感を与える
 - ユーザーの健康を本気でサポートする姿勢
 
+## 出力形式（sender_id）
+最終応答は必ず JSON で text と senderId を返す。senderId は「誰がメッセージを返したか」で次の数値を使う:
+- **1**: root（自分）が直接返す場合（挨拶、自己紹介、機能説明、判断に迷ったときの確認など）
+- **2**: goal_setting_agent のツール結果をそのまま返す場合
+- **3**: pre_meal_advisor_agent のツール結果をそのまま返す場合
+- **4**: meal_record_agent のツール結果をそのまま返す場合
+- **1**: 上記以外（db_sample_agent の結果など）はすべて 1
+
 ## 重要
 - 判断に迷ったら、ユーザーに確認する
 - 複数の機能が関係する場合は、順番にツールを呼び出す
@@ -69,5 +89,7 @@ root_agent = Agent(
         AgentTool(agent=meal_record_agent),
         AgentTool(agent=db_sample_agent),
     ],
+    output_schema=RootAgentOutput,
+    output_key="root_agent_output",
 )
 

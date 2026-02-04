@@ -17,6 +17,7 @@ import {
   RESET_PATTERN,
   RESET_COMMANDS,
   EMPTY_RESPONSE_MESSAGE,
+  getSender,
 } from '@/config/constants.js';
 import type { WebhookMessage } from '@/types/index.js';
 
@@ -147,10 +148,11 @@ api.post('/webhook', async (c) => {
     const response = await agentClient.query(userId, sessionId, message);
     logger.info({ userId }, 'Got Agent Engine response');
 
-    const sender: Sender | undefined = undefined;
-    // TODO: set sender
-
-    const text = response.trim().length > 0 ? response : EMPTY_RESPONSE_MESSAGE;
+    const text =
+      response.text.trim().length > 0 ? response.text : EMPTY_RESPONSE_MESSAGE;
+    const sender: Sender | undefined = response.senderId
+      ? getSender(response.senderId)
+      : undefined;
 
     await replyMessage(
       {
