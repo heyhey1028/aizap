@@ -14,6 +14,7 @@ from .base import Base
 if TYPE_CHECKING:
     from .goal import Goal
     from .exercise_log import ExerciseLog
+    from .diet_log import DietLog
     from .habit import Habit
 
 
@@ -41,6 +42,9 @@ class UserSession(Base):
     )
     exercise_logs: Mapped[list["ExerciseLog"]] = relationship(
         "ExerciseLog", back_populates="user", cascade="all, delete-orphan"
+    )
+    diet_logs: Mapped[list["DietLog"]] = relationship(
+        "DietLog", back_populates="user", cascade="all, delete-orphan"
     )
     habits: Mapped[list["Habit"]] = relationship(
         "Habit", back_populates="user", cascade="all, delete-orphan"

@@ -9,6 +9,7 @@ from .base import Base
 from .user_session import UserSession
 from .goal import Goal
 from .exercise_log import ExerciseLog
+from .diet_log import DietLog
 from .habit import Habit
 
 __all__ = [
@@ -16,5 +17,6 @@ __all__ = [
     "UserSession",
     "Goal",
     "ExerciseLog",
+    "DietLog",
     "Habit",
 ]
