@@ -1,3 +1,5 @@
+from pydantic import BaseModel, Field
+
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool
 
@@ -7,6 +9,16 @@ from .sub_agents import (
     meal_record_agent,
     db_sample_agent,
 )
+
+
+class RootAgentOutput(BaseModel):
+    """root Agent の最終出力スキーマ。テキストと senderId を返す。"""
+
+    text: str = Field(description="ユーザーへの応答メッセージ（従来の string 出力）。")
+    sender_id: int = Field(description="送信元 ID（数値）。", alias="senderId")
+
+    model_config = {"populate_by_name": True}
+
 
 # root agent
 root_agent = Agent(
@@ -69,5 +81,7 @@ root_agent = Agent(
         AgentTool(agent=meal_record_agent),
         AgentTool(agent=db_sample_agent),
     ],
+    output_schema=RootAgentOutput,
+    output_key="root_agent_output",
 )
 
