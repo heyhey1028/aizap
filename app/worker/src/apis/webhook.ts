@@ -30,22 +30,14 @@ const isResetCommand = (text: string): boolean => {
   return RESET_PATTERN.test(text.trim());
 };
 
-const normalizeResponseText = (response: string, userId: string): string => {
-  if (response.trim().length > 0) {
-    return response;
-  }
-  logger.warn({ userId }, 'Agent Engine returned empty response');
-  return EMPTY_RESPONSE_MESSAGE;
-};
-
-const resetHandler = async (webhookMessage: WebhookMessage, userId: string) => {
+const handleReset = async (replyToken: string, userId: string) => {
   const prisma = getPrismaClient();
   await prisma.userSession.deleteMany({ where: { userId } });
   logger.info({ userId }, 'Session reset requested');
 
   await replyMessage(
     {
-      replyToken: webhookMessage.replyToken,
+      replyToken,
       messages: [{ type: 'text', text: RESET_MESSAGE }],
     },
     userId
@@ -90,7 +82,7 @@ api.post('/webhook', async (c) => {
   try {
     const body = (await c.req.json()) as PubSubPushMessage;
     const webhookMessage = decodeWebhookMessage(body.message.data);
-    const userId = webhookMessage.userId;
+    const { userId, replyToken } = webhookMessage;
     if (
       webhookMessage.type !== 'text' &&
       webhookMessage.type !== 'image' &&
@@ -103,10 +95,8 @@ api.post('/webhook', async (c) => {
 
     logger.info({ userId }, 'Received Pub/Sub message');
 
-    const agentClient = getAgentEngineClient();
-
     if (webhookMessage.type === 'text' && isResetCommand(webhookMessage.text)) {
-      await resetHandler(webhookMessage, userId);
+      await handleReset(replyToken, userId);
       return c.json({ status: 'success', reset: true }, 200);
     }
 
@@ -153,23 +143,22 @@ api.post('/webhook', async (c) => {
       message = webhookMessage.text;
     }
 
+    const agentClient = getAgentEngineClient();
     const response = await agentClient.query(userId, sessionId, message);
-    // TODO: dummy
-    const sender: Sender = {
-      name: 'Aizap',
-      iconUrl: 'https://example.com/icon.png',
-    };
-
     logger.info({ userId }, 'Got Agent Engine response');
 
-    const reply = normalizeResponseText(response, userId);
+    const sender: Sender | undefined = undefined;
+    // TODO: set sender
+
+    const text = response.trim().length > 0 ? response : EMPTY_RESPONSE_MESSAGE;
+
     await replyMessage(
       {
-        replyToken: webhookMessage.replyToken,
+        replyToken,
         messages: [
           {
             type: 'text',
-            text: reply,
+            text,
             sender,
           },
         ],
@@ -177,7 +166,7 @@ api.post('/webhook', async (c) => {
       userId
     );
 
-    logger.info({ userId }, 'Webhook processed');
+    logger.info({ userId, text }, 'Webhook processed');
     return c.json({ status: 'success' }, 200);
   } catch (error) {
     logger.error({ err: error }, 'Webhook error');
