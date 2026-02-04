@@ -25,17 +25,17 @@ export const getSender = (senderId: number): Sender | undefined => {
         'https://ca.slack-edge.com/T012UQWDRQC-U01F7L45V9B-7a1a1cde3347-512',
     },
     {
-      name: 'わかなお',
+      name: '目標管理エージェント',
       iconUrl:
         'https://ca.slack-edge.com/T012UQWDRQC-U016HKBBDDG-gd0fc4cab7e6-512',
     },
     {
-      name: 'miyasic',
+      name: '食事前アドバイスエージェント',
       iconUrl:
         'https://ca.slack-edge.com/T012UQWDRQC-U0134037W2V-2c7ce4babac6-512',
     },
     {
-      name: 'heyhey',
+      name: '食事記録エージェント',
       iconUrl:
         'https://ca.slack-edge.com/T012UQWDRQC-U030W6J3X28-fd2dfc14b5c8-512',
     },
