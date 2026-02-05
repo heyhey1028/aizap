@@ -13,21 +13,15 @@ export const EMPTY_RESPONSE_MESSAGE =
   'すみません、現在応答を生成できませんでした。もう一度お試しください。';
 
 export const getSender = (senderId: number): Sender | undefined => {
-  // senderId は1-4までの整数
-  if (senderId < 1 || senderId > 4) {
+  // senderId は 2-4（1 は root agent のため送信元表示なし）
+  if (senderId === 1 || senderId < 2 || senderId > 4) {
     return undefined;
   }
 
   const senders: Sender[] = [
     {
-      name: 'Aizap',
-      iconUrl:
-        'https://ca.slack-edge.com/T012UQWDRQC-U01F7L45V9B-7a1a1cde3347-512',
-    },
-    {
-      name: '目標管理エージェント',
-      iconUrl:
-        'https://ca.slack-edge.com/T012UQWDRQC-U016HKBBDDG-gd0fc4cab7e6-512',
+      name: 'a-burn',
+      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-burn.png',
     },
     {
       name: '食事前アドバイスエージェント',
@@ -41,5 +35,5 @@ export const getSender = (senderId: number): Sender | undefined => {
     },
   ];
 
-  return senders[senderId - 1];
+  return senders[senderId - 2];
 };
