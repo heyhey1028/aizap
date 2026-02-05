@@ -20,9 +20,8 @@ export const getSender = (senderId: number): Sender | undefined => {
 
   const senders: Sender[] = [
     {
-      name: '目標管理エージェント',
-      iconUrl:
-        'https://ca.slack-edge.com/T012UQWDRQC-U016HKBBDDG-gd0fc4cab7e6-512',
+      name: 'a-burn',
+      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-burn.png',
     },
     {
       name: '食事前アドバイスエージェント',
