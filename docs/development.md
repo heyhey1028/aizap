@@ -41,10 +41,10 @@ export DB_NAME=aizap
 
 ## ADK コマンド
 
-| コマンド | 説明 | セッション |
-|---------|------|-----------|
-| `uv run adk web` | ブラウザベース開発 UI | InMemorySessionService |
-| `uv run adk run` | ターミナル対話型テスト | InMemorySessionService |
+| コマンド                | 説明                       | セッション             |
+| ----------------------- | -------------------------- | ---------------------- |
+| `uv run adk web`        | ブラウザベース開発 UI      | InMemorySessionService |
+| `uv run adk run`        | ターミナル対話型テスト     | InMemorySessionService |
 | `uv run adk api_server` | ローカル REST API サーバー | InMemorySessionService |
 
 ### 実行例
@@ -67,12 +67,12 @@ uv run adk api_server agents/health_advisor
 
 ブラウザで http://localhost:8000 にアクセスすると、開発用 UI が表示されます。
 
-| 項目 | 説明 |
-|------|------|
-| Agent ドロップダウン | テストするエージェントを選択 |
-| SESSION ID | 現在のセッション ID（自動生成） |
-| **USER ID** | ユーザー ID（デフォルト: `user`、クリックして変更可能） |
-| + New Session | 新しいセッションを開始 |
+| 項目                 | 説明                                                    |
+| -------------------- | ------------------------------------------------------- |
+| Agent ドロップダウン | テストするエージェントを選択                            |
+| SESSION ID           | 現在のセッション ID（自動生成）                         |
+| **USER ID**          | ユーザー ID（デフォルト: `user`、クリックして変更可能） |
+| + New Session        | 新しいセッションを開始                                  |
 
 **ヒント**: `USER ID` 欄はクリックして任意の値に変更できます。DB テスト時は `local-test-user` などに変更すると、本番データと区別しやすくなります。
 
@@ -166,3 +166,12 @@ terraform plan \
 
 > **Note**: `image_*` には現在デプロイ中のイメージを指定してください。
 > GitHub Actions では自動で現在のイメージを取得します。
+
+## 公開アセット用バケット（画像アップロード）
+
+公開アセット用バケット（`${project_id}-asset`）へ画像をアップロードする例：
+
+```bash
+PROJECT_ID=aizap-prod
+gcloud storage cp image.png gs://${PROJECT_ID}-asset/
+```
