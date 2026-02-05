@@ -77,6 +77,44 @@ class ExerciseLogRepository(BaseRepository[ExerciseLog]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_user_and_date_range(
+        self,
+        user_id: str,
+        start_date: datetime,
+        end_date: datetime,
+        exercise_name: str | None = None,
+        limit: int | None = None,
+    ) -> list[ExerciseLog]:
+        """ユーザー ID と日付範囲で運動ログを取得する。
+
+        Args:
+            user_id: ユーザー ID
+            start_date: 開始日時（この日時以降のログを取得）
+            end_date: 終了日時（この日時以前のログを取得）
+            exercise_name: 運動名（省略時は全運動種目）
+            limit: 取得件数の上限（省略時は制限なし）
+
+        Returns:
+            ExerciseLog のリスト（記録日時の降順）
+        """
+        stmt = (
+            select(ExerciseLog)
+            .where(ExerciseLog.user_id == user_id)
+            .where(ExerciseLog.recorded_at >= start_date)
+            .where(ExerciseLog.recorded_at <= end_date)
+        )
+
+        if exercise_name is not None:
+            stmt = stmt.where(ExerciseLog.exercise_name == exercise_name)
+
+        stmt = stmt.order_by(ExerciseLog.recorded_at.desc())
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create_log(
         self,
         user_id: str,
