@@ -1,73 +1,104 @@
 from datetime import datetime
-from typing import Optional
+from typing import List
 
 from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 
+from ..db.config import get_async_session
+from ..db.repositories import GoalRepository
+from ..logger import get_logger
+
+logger = get_logger(__name__)
+
 
 # tool
-def get_user_health_goal(tool_context: ToolContext) -> dict:
-  """ユーザーの健康目標を取得します。
+async def get_user_health_goal(tool_context: ToolContext) -> dict:
+    """ユーザーの健康目標をDBから取得します。
 
-  Session Stateから健康目標を読み取ります。
-  設定されていない場合は、未設定であることを返します。
-  """
-  health_goal = tool_context.state.get("health_goal")
+    DBから健康目標を読み取ります。
+    設定されていない場合は、未設定であることを返します。
+    """
+    user_id = tool_context.user_id
 
-  if health_goal is None:
-    return {
-        "status": "not_set",
-        "message": "健康目標がまだ設定されていません。目標を設定しましょう！",
-    }
+    try:
+        async with get_async_session() as session:
+            repo = GoalRepository(session)
+            goal = await repo.get_by_user_id(user_id)
 
-  return {
-      "status": "success",
-      "health_goal": health_goal,
-  }
+            if goal is None:
+                logger.info("健康目標が見つかりません", user_id=user_id)
+                return {
+                    "status": "not_set",
+                    "message": "健康目標がまだ設定されていません。目標を設定しましょう！",
+                }
+
+            logger.info("健康目標を取得しました", user_id=user_id, goal_id=goal.id)
+            return {
+                "status": "success",
+                "health_goal": {
+                    "id": goal.id,
+                    "details": goal.details,
+                    "habits": goal.habits,
+                    "created_at": goal.created_at.isoformat(),
+                },
+            }
+
+    except Exception as e:
+        logger.error("健康目標の取得に失敗", user_id=user_id, error=str(e))
+        return {
+            "status": "error",
+            "message": "健康目標の取得中にエラーが発生しました。",
+        }
 
 
-def set_user_health_goal(
+async def set_user_health_goal(
     tool_context: ToolContext,
-    goal_type: str,
-    description: str,
-    target_value: Optional[float] = None,
-    current_value: Optional[float] = None,
-    target_date: Optional[str] = None,
-    daily_calorie_target: Optional[int] = None,
+    details: str,
+    habits: str,
 ) -> dict:
-  """ユーザーの健康目標を設定します。
+    """ユーザーの健康目標をDBに保存します。
 
-  Args:
-      tool_context: ADKが提供するToolContext。
-      goal_type: 目標の種類（weight_loss, muscle_gain, maintain, improve_sleep等）
-      description: 目標の詳細説明
-      target_value: 目標値（体重kg、体脂肪率%等、オプション）
-      current_value: 現在値（体重kg、体脂肪率%等、オプション）
-      target_date: 目標達成日（YYYY-MM-DD形式、オプション）
-      daily_calorie_target: 1日の目標摂取カロリー（kcal、オプション）
-  """
-  health_goal = {
-      "goal_type": goal_type,
-      "description": description,
-      "target_value": target_value,
-      "current_value": current_value,
-      "target_date": target_date,
-      "daily_calorie_target": daily_calorie_target,
-      "created_at": datetime.now().isoformat(),
-  }
+    全てのhabits（運動・食事・睡眠）がユーザーと合意できた後に使用します。
+    設定後、会話履歴はクリアされます。
 
-  tool_context.state["health_goal"] = health_goal
+    Args:
+        tool_context: ADKが提供するToolContext。
+        details: 目標の詳細（例：「3ヶ月で5kg減量して体脂肪率を20%以下にする」）
+        habits: 運動・食事・睡眠の行動計画を箇条書きで記述（例：「- 運動：毎日3km走る\n- 食事：1日の摂取カロリーを1800kcal以下に抑える\n- 睡眠：毎日23時までに寝る」）
+    """
+    user_id = tool_context.user_id
 
-  response = {
-      "status": "success",
-      "message": f"健康目標を設定しました: {goal_type}",
-      "health_goal": health_goal,
-  }
+    try:
+        async with get_async_session() as session:
+            repo = GoalRepository(session)
+            goal = await repo.create_goal(
+                user_id=user_id,
+                details=details,
+                habits=habits,
+            )
 
-  if daily_calorie_target:
-      response["message"] += f"（1日の目標カロリー: {daily_calorie_target}kcal）"
+            logger.info("健康目標を保存しました", user_id=user_id, goal_id=goal.id)
 
-  return response
+            # 会話履歴をクリア
+            tool_context.state["goal_setting_history"] = []
+
+            return {
+                "status": "success",
+                "message": "健康目標を設定しました",
+                "health_goal": {
+                    "id": goal.id,
+                    "details": goal.details,
+                    "habits": goal.habits,
+                    "created_at": goal.created_at.isoformat(),
+                },
+            }
+
+    except Exception as e:
+        logger.error("健康目標の保存に失敗", user_id=user_id, error=str(e))
+        return {
+            "status": "error",
+            "message": "健康目標の保存中にエラーが発生しました。",
+        }
 
 
 # sub agent
@@ -79,42 +110,90 @@ goal_setting_agent = Agent(
 ## あなたの役割
 - ユーザーの健康目標を設定・確認・更新する
 - 目標設定の際は、具体的で達成可能な目標を一緒に考える
-- 目標達成のための1日のカロリー目標を提案・設定する
+- 目標達成のための日々の習慣をユーザーと一緒に決める
 - 現在の目標を確認し、進捗を励ます
 
+## 重要：goalもhabitsも勝手に決めない
+goalもhabitsもエージェントが一方的に決めてはいけない。必ずユーザーと対話しながら一緒に決めること。
+
+## 【必須】会話履歴ツールの使用
+このエージェントは複数回呼び出されるため、会話履歴を使って文脈を維持する必要がある。
+
+### 開始時（必須）
+履歴がある場合は、その内容を踏まえて会話を続ける。
+
+### 終了時（必須）
+- user_message: ユーザーが言ったこと
+- assistant_response: 自分が返す応答内容
+
+この保存をしないと、次回呼び出された時に会話の文脈が失われる。
+
+## 目標設定の流れ
+
+### ステップ1: 目標のヒアリング
+ユーザーから目標を聞く。
+
+### ステップ2: 定量的な目標への落とし込み
+目標が曖昧な場合（例：「痩せたい」「健康になりたい」）は、以下を確認して定量的な目標にする：
+- 具体的な数値（体重○kg、体脂肪率○%など）
+- 現在の状態
+- 達成期限
+
+### ステップ3: habitsの検討（1つずつ）
+目標が定まったら、habitsを**1つずつ**ユーザーと一緒に検討する。
+目標達成に最も関係するカテゴリから順番に検討する。
+
+例：減量目標の場合
+1. まず「食事」について提案し、ユーザーの意見を聞く
+2. 次に「運動」について提案し、ユーザーの意見を聞く
+3. 最後に「睡眠」について提案し、ユーザーの意見を聞く
+
+提案する際は選択肢を示し、ユーザーに選んでもらう形にする。
+例：「食事について、1日の摂取カロリーをどのくらいにしましょうか？減量には1500〜1800kcalが目安ですが、いかがですか？」
+
+### ステップ4: 目標の正式保存
+全てのhabits（運動・食事・睡眠）がユーザーと合意できたら、`set_user_health_goal`で正式に保存する。
+
 ## 使用するツール
-- `get_user_health_goal`: 現在設定されている健康目標を確認
-- `set_user_health_goal`: 新しい健康目標を設定
+- `get_user_health_goal`: 正式に設定された健康目標を確認
+- `set_user_health_goal`: 健康目標を正式に設定（全てのhabitsがユーザーと合意できてから使用）
 
-## 目標タイプの例
-- weight_loss: 減量
-- muscle_gain: 筋肉増量
-- maintain: 現状維持
-- reduce_body_fat: 体脂肪率低下
-- improve_sleep: 睡眠改善
-- increase_activity: 活動量増加
+## 日々の習慣（habits）のフォーマット
+set_user_health_goalで保存する際は以下の形式で箇条書きにする:
+- 運動：具体的な運動内容
+- 食事：具体的な食事の目標
+- 睡眠：具体的な睡眠の目標
 
-## 1日の目標カロリー設定の目安
-目標タイプに応じて適切なカロリー目標を提案する:
+例：
+- 運動：毎日1時間歩く
+- 食事：1日の摂取カロリーを1800kcal以下に抑える
+- 睡眠：毎日23時までに寝る
 
-### 減量（weight_loss）
-- 緩やかな減量: 基礎代謝 × 1.2〜1.4（月1〜2kg減）
-- 一般的な目安: 男性 1,500〜1,800kcal / 女性 1,200〜1,500kcal
+## カロリー目標の目安
+習慣に含めるカロリー目標の参考値:
 
-### 筋肉増量（muscle_gain）
-- 基礎代謝 × 1.5〜1.7 + 200〜300kcal
+### 減量
+- 緩やかな減量: 男性 1,500〜1,800kcal / 女性 1,200〜1,500kcal
+
+### 筋肉増量
 - 一般的な目安: 男性 2,500〜3,000kcal / 女性 2,000〜2,500kcal
 
-### 現状維持（maintain）
-- 基礎代謝 × 活動係数（1.2〜1.9）
+### 現状維持
 - 一般的な目安: 男性 2,000〜2,400kcal / 女性 1,600〜2,000kcal
 
 ## 対話のポイント
-1. まず現在の目標があるか確認する
-2. 目標設定時は、具体的な数値や期限を聞く
-3. 目標に応じた1日のカロリー目標を提案する
-4. 励ましと共感を忘れない
-5. 無理のない現実的な目標を提案する
+- goalもhabitsも勝手に決めず、必ずユーザーに確認する
+- 選択肢を提示して選んでもらう形にする
+- 無理のない現実的な提案をする
+- ユーザーの意見を尊重する
+
+## 返答に含めるべき情報
+- **進行状況を明示する**: 例えば「食事について決まりました。次は運動について相談しましょう！」
+- **次のステップを示す**: まだ決まっていないhabitsがある場合は、次に何を決めるか明確に伝える
+- **全て決まった時のみ保存**: 3つ全て（運動・食事・睡眠）が決まったら、`set_user_health_goal`で保存して完了を伝える
 """,
-    tools=[get_user_health_goal, set_user_health_goal],
+    tools=[
+        get_user_health_goal,
+        set_user_health_goal,
+    ],
 )

@@ -186,3 +186,45 @@ export const extractFinalTextFromStream = (responseText: string): string => {
 
   return finalText ?? '';
 };
+
+/**
+ * root Agent の構造化出力スキーマ（ADK output_schema=RootAgentOutput に相当）。
+ * プレーンテキストの場合は text のみ、JSON の場合は text と senderId を持つ。
+ */
+export type StructuredAgentReply = {
+  text: string;
+  senderId?: number;
+};
+
+/**
+ * 最終応答テキストを構造化レスポンスにパースする。
+ * JSON で text と senderId を持つ場合は両方を返し、それ以外は text のみとする。
+ *
+ * @param raw 抽出された最終テキスト（プレーン or JSON 文字列）
+ * @returns { text, senderId? }
+ */
+export function parseStructuredReply(raw: string): StructuredAgentReply {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return { text: '' };
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'text' in parsed &&
+      typeof (parsed as { text: unknown }).text === 'string'
+    ) {
+      const obj = parsed as { text: string; senderId?: number };
+      const senderId =
+        typeof obj.senderId === 'number' && Number.isFinite(obj.senderId)
+          ? obj.senderId
+          : undefined;
+      return { text: obj.text, senderId };
+    }
+  } catch {
+    // JSON でない場合はそのままテキストとして扱う。
+  }
+  return { text: trimmed };
+}

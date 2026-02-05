@@ -1,8 +1,3 @@
-/**
- * LINE Messaging API クライアント
- *
- * LINE Push API を使用してユーザーにメッセージを送信する。
- */
 import { messagingApi } from '@line/bot-sdk';
 import { Readable } from 'node:stream';
 import { getLineChannelAccessToken } from '@/config/env.js';
@@ -65,24 +60,25 @@ export async function getMessageContent(
   };
 }
 
+export type ReplyMessageRequest = Parameters<
+  messagingApi.MessagingApiClient['replyMessage']
+>[0];
+
 /**
- * Reply API でテキストメッセージを返信する。
+ * Reply API で返信する。
+ * 公式の ReplyMessageRequest をそのまま受け取り送信する。
  *
- * @param userId 送信先の LINE ユーザー ID
- * @param replyToken 返信用トークン
- * @param text 返信するテキスト
+ * @param request LINE Reply API のリクエスト（replyToken + messages）
+ * @param userId ログ用の LINE ユーザー ID
  */
 export async function replyMessage(
-  userId: string,
-  replyToken: string,
-  text: string
+  request: ReplyMessageRequest,
+  userId: string
 ): Promise<void> {
   const client = getLineClient();
+
   try {
-    await client.replyMessage({
-      replyToken,
-      messages: [{ type: 'text', text }],
-    });
+    await client.replyMessage(request);
     logger.info({ userId }, 'Sent reply message to LINE');
   } catch (error) {
     logger.error({ userId, err: error }, 'Failed to send reply message');

@@ -11,19 +11,17 @@ import { getAgentEngineClient, Message } from '@/clients/agent-engine.js';
 import { getPrismaClient } from '@/clients/prisma.js';
 import { uploadLineContent, resolveContentType } from '@/clients/gcs.js';
 import { getMessageContent, replyMessage } from '@/clients/line.js';
+import type { Sender } from '@line/bot-sdk';
+import {
+  RESET_MESSAGE,
+  RESET_PATTERN,
+  RESET_COMMANDS,
+  EMPTY_RESPONSE_MESSAGE,
+  getSender,
+} from '@/config/constants.js';
+import type { WebhookMessage } from '@/types/index.js';
 
 const api: Hono = new Hono();
-const RESET_MESSAGE =
-  'セッションをリセットしました。続けて話しかけてください。';
-const RESET_PATTERN =
-  /^(リセット|セッションリセット|最初から|はじめから|やり直し)(して|してください|お願い)?$/;
-const RESET_COMMANDS = new Set([
-  'reset',
-  'session reset',
-  'session reset please',
-]);
-const EMPTY_RESPONSE_MESSAGE =
-  'すみません、現在応答を生成できませんでした。もう一度お試しください。';
 
 const isResetCommand = (text: string): boolean => {
   const normalized = text.trim().toLowerCase();
@@ -33,12 +31,45 @@ const isResetCommand = (text: string): boolean => {
   return RESET_PATTERN.test(text.trim());
 };
 
-const normalizeResponseText = (response: string, userId: string): string => {
-  if (response.trim().length > 0) {
-    return response;
+const handleReset = async (replyToken: string, userId: string) => {
+  const prisma = getPrismaClient();
+  await prisma.userSession.deleteMany({ where: { userId } });
+  logger.info({ userId }, 'Session reset requested');
+
+  await replyMessage(
+    {
+      replyToken,
+      messages: [{ type: 'text', text: RESET_MESSAGE }],
+    },
+    userId
+  );
+
+  logger.info({ userId }, 'Webhook processed (reset)');
+};
+
+const handleSession = async (
+  userId: string,
+  webhookMessage: WebhookMessage
+) => {
+  const prisma = getPrismaClient();
+  const agentClient = getAgentEngineClient();
+  const storedSession = await prisma.userSession.findUnique({
+    where: { userId },
+  });
+  const sessionId =
+    storedSession?.sessionId ??
+    webhookMessage.sessionId ??
+    (await agentClient.createSession(userId));
+
+  if (!storedSession) {
+    await prisma.userSession.upsert({
+      where: { userId },
+      update: { sessionId },
+      create: { userId, sessionId },
+    });
+    logger.info({ userId, sessionId }, 'Saved new session');
   }
-  logger.warn({ userId }, 'Agent Engine returned empty response');
-  return EMPTY_RESPONSE_MESSAGE;
+  return sessionId;
 };
 
 /**
@@ -52,55 +83,28 @@ api.post('/webhook', async (c) => {
   try {
     const body = (await c.req.json()) as PubSubPushMessage;
     const webhookMessage = decodeWebhookMessage(body.message.data);
-    const userId = webhookMessage.userId;
+    const { userId, replyToken } = webhookMessage;
+    if (
+      webhookMessage.type !== 'text' &&
+      webhookMessage.type !== 'image' &&
+      webhookMessage.type !== 'video' &&
+      webhookMessage.type !== 'audio'
+    ) {
+      logger.warn({ userId }, 'Unsupported message type');
+      return c.json({ status: 'ignored' }, 200);
+    }
 
     logger.info({ userId }, 'Received Pub/Sub message');
 
-    const agentClient = getAgentEngineClient();
-    const prisma = getPrismaClient();
-
     if (webhookMessage.type === 'text' && isResetCommand(webhookMessage.text)) {
-      await prisma.userSession.deleteMany({ where: { userId } });
-      logger.info({ userId }, 'Session reset requested');
-
-      await replyMessage(userId, webhookMessage.replyToken, RESET_MESSAGE);
-
-      logger.info({ userId }, 'Webhook processed (reset)');
+      await handleReset(replyToken, userId);
       return c.json({ status: 'success', reset: true }, 200);
     }
 
     // userId で sessionId を永続化して再利用する
-    const storedSession = await prisma.userSession.findUnique({
-      where: { userId },
-    });
-    const sessionId =
-      storedSession?.sessionId ??
-      webhookMessage.sessionId ??
-      (await agentClient.createSession(userId));
+    const sessionId = await handleSession(userId, webhookMessage);
 
-    if (!storedSession) {
-      await prisma.userSession.upsert({
-        where: { userId },
-        update: { sessionId },
-        create: { userId, sessionId },
-      });
-      logger.info({ userId, sessionId }, 'Saved new session');
-    }
-    if (webhookMessage.type === 'text') {
-      const response = await agentClient.query(
-        userId,
-        sessionId,
-        webhookMessage.text
-      );
-
-      logger.info({ userId }, 'Got Agent Engine response');
-
-      const message = normalizeResponseText(response, userId);
-      await replyMessage(userId, webhookMessage.replyToken, message);
-
-      logger.info({ userId }, 'Webhook processed');
-      return c.json({ status: 'success' }, 200);
-    }
+    let message: Message;
 
     if (
       webhookMessage.type === 'image' ||
@@ -129,26 +133,43 @@ api.post('/webhook', async (c) => {
       }
 
       const mimeType = resolveContentType(webhookMessage.type, contentType);
-      const message: Message = {
+      message = {
         role: 'user',
         parts: [
           { text: `ユーザーが${label}を送信しました。` },
           { file_data: { file_uri: gcsUri, mime_type: mimeType } },
         ],
       };
-      const response = await agentClient.query(userId, sessionId, message);
-
-      logger.info({ userId }, 'Got Agent Engine response');
-
-      const reply = normalizeResponseText(response, userId);
-      await replyMessage(userId, webhookMessage.replyToken, reply);
-
-      logger.info({ userId }, 'Webhook processed');
-      return c.json({ status: 'success' }, 200);
+    } else {
+      message = webhookMessage.text;
     }
 
-    logger.warn({ userId }, 'Unsupported message type');
-    return c.json({ status: 'ignored' }, 200);
+    const agentClient = getAgentEngineClient();
+    const response = await agentClient.query(userId, sessionId, message);
+    logger.info({ userId }, 'Got Agent Engine response');
+
+    const text =
+      response.text.trim().length > 0 ? response.text : EMPTY_RESPONSE_MESSAGE;
+    const sender: Sender | undefined = response.senderId
+      ? getSender(response.senderId)
+      : undefined;
+
+    await replyMessage(
+      {
+        replyToken,
+        messages: [
+          {
+            type: 'text',
+            text,
+            sender,
+          },
+        ],
+      },
+      userId
+    );
+
+    logger.info({ userId, text }, 'Webhook processed');
+    return c.json({ status: 'success' }, 200);
   } catch (error) {
     logger.error({ err: error }, 'Webhook error');
 

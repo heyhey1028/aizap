@@ -4,7 +4,7 @@ import { logger } from '@/utils/logger.js';
 import { lineMiddleware } from '@/middleware/line.js';
 import { getLineChannelSecret } from '@/config/env.js';
 import { publishWebhookMessage } from '@/clients/pubsub.js';
-import { replyMessage } from '@/clients/line.js';
+import { replyMessage, startLoading } from '@/clients/line.js';
 import type { WebhookMessage } from '@/types/index.js';
 
 /** スタンプ受信時の返信メッセージ */
@@ -29,7 +29,7 @@ const handleEvent = async (event: WebhookEvent) => {
       timestamp: new Date(event.timestamp).toISOString(),
     };
 
-    await publishWebhookMessage(message);
+    await Promise.all([startLoading(userId), publishWebhookMessage(message)]);
     return;
   }
 
@@ -46,7 +46,7 @@ const handleEvent = async (event: WebhookEvent) => {
       timestamp: new Date(event.timestamp).toISOString(),
     };
 
-    await publishWebhookMessage(message);
+    await Promise.all([startLoading(userId), publishWebhookMessage(message)]);
     return;
   }
 
