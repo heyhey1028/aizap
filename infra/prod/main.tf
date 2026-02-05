@@ -225,6 +225,31 @@ resource "google_project_iam_member" "vertex_ai_service_usage" {
 }
 
 # -----------------------------------------------------------------------------
+# Cloud Storage (Public Asset)
+# -----------------------------------------------------------------------------
+
+resource "google_storage_bucket" "public_asset" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-asset"
+  location                    = "ASIA1"
+  storage_class               = "STANDARD"
+  force_destroy               = false
+  uniform_bucket_level_access = true
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_storage_bucket_iam_binding" "public_asset_iam_binding" {
+  bucket = google_storage_bucket.public_asset.name
+  role   = "roles/storage.legacyObjectReader"
+  members = [
+    "allUsers",
+  ]
+
+  depends_on = [google_project_service.apis, google_storage_bucket.public_asset]
+}
+
+# -----------------------------------------------------------------------------
 # Artifact Registry
 # -----------------------------------------------------------------------------
 
