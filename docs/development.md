@@ -173,5 +173,11 @@ terraform plan \
 
 ```bash
 PROJECT_ID=aizap-prod
-gcloud storage cp image.png gs://${PROJECT_ID}-asset/
+gcloud storage cp ./assets/a-burn.png gs://${PROJECT_ID}-asset/
+```
+
+アップロード後の公開 URL（オブジェクト名が `a-burn.png` の場合）:
+
+```bash
+echo "https://storage.googleapis.com/${PROJECT_ID}-asset/a-burn.png"
 ```
