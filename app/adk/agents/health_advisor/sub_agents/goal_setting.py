@@ -1,12 +1,15 @@
+import uuid
 from datetime import datetime
 from typing import List
 
 from google.adk.agents import Agent
-from google.adk.tools import ToolContext
+from google.adk.tools import AgentTool, ToolContext
 
 from ..db.config import get_async_session
-from ..db.repositories import GoalRepository
+from ..schemas import GoalSettingAgentOutput
+from ..db.repositories import GoalRepository, UserSessionRepository
 from ..logger import get_logger
+from ..tools.util_tools import finish_task
 
 logger = get_logger(__name__)
 
@@ -70,6 +73,16 @@ async def set_user_health_goal(
 
     try:
         async with get_async_session() as session:
+            # goals は user_sessions への外部キー制約があるため、
+            # 先に user_sessions にユーザーが存在することを保証する
+            user_session_repo = UserSessionRepository(session)
+            existing = await user_session_repo.get_by_user_id(user_id)
+            if existing is None:
+                await user_session_repo.upsert(
+                    user_id=user_id,
+                    session_id=str(uuid.uuid4()),
+                )
+
             repo = GoalRepository(session)
             goal = await repo.create_goal(
                 user_id=user_id,
@@ -151,12 +164,16 @@ goalもhabitsもエージェントが一方的に決めてはいけない。必�
 提案する際は選択肢を示し、ユーザーに選んでもらう形にする。
 例：「食事について、1日の摂取カロリーをどのくらいにしましょうか？減量には1500〜1800kcalが目安ですが、いかがですか？」
 
-### ステップ4: 目標の正式保存
+### ステップ4: 目標の正式保存と完了
 全てのhabits（運動・食事・睡眠）がユーザーと合意できたら、`set_user_health_goal`で正式に保存する。
+保存に成功したら、**ユーザーに一言添えてから** `finish_task` を呼び、対話権をルートエージェントに戻すこと。
+- 一言：目標が決まったことを簡潔に伝え、励ましやねぎらいの短い一言を添える（例：「目標が決まりましたね。この調子で一緒に頑張りましょう！」）。
+- その後に `finish_task` を呼ぶ。summary には設定した目標の要約（details と habits の要点）を簡潔に含めること。
 
 ## 使用するツール
 - `get_user_health_goal`: 正式に設定された健康目標を確認
 - `set_user_health_goal`: 健康目標を正式に設定（全てのhabitsがユーザーと合意できてから使用）
+- `finish_task`: 目標設定完了時に呼び出し、対話権をルートエージェントに戻す（set_user_health_goal 成功後に必ず呼ぶ）
 
 ## 日々の習慣（habits）のフォーマット
 set_user_health_goalで保存する際は以下の形式で箇条書きにする:
@@ -190,10 +207,16 @@ set_user_health_goalで保存する際は以下の形式で箇条書きにする
 ## 返答に含めるべき情報
 - **進行状況を明示する**: 例えば「食事について決まりました。次は運動について相談しましょう！」
 - **次のステップを示す**: まだ決まっていないhabitsがある場合は、次に何を決めるか明確に伝える
-- **全て決まった時のみ保存**: 3つ全て（運動・食事・睡眠）が決まったら、`set_user_health_goal`で保存して完了を伝える
+- **全て決まった時のみ保存**: 3つ全て（運動・食事・睡眠）が決まったら、`set_user_health_goal`で保存し、ユーザーに一言添えた上で `finish_task` を呼んでルートエージェントに戻す。
+
+## 出力形式
+最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **2** を返す（目標設定エージェントのID）。
 """,
     tools=[
         get_user_health_goal,
         set_user_health_goal,
+        finish_task,
     ],
+    output_schema=GoalSettingAgentOutput,
+    output_key="goal_setting_output",
 )

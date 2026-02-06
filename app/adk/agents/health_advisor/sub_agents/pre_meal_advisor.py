@@ -9,6 +9,7 @@ from typing import Optional
 from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 
+from ..schemas import PreMealAdvisorAgentOutput
 from ..rakuten_recipe_api import (
     RakutenRecipeClient,
     RECIPE_CATEGORIES,
@@ -295,6 +296,9 @@ PRE_MEAL_ADVISOR_INSTRUCTION = """あなたは食事アドバイスの専門家�
 - カスタムレシピ生成後は、必ず`suggest_recipes`で関連レシピも表示
 - 楽天レシピを紹介する際は「【楽天レシピ】」のクレジットを表示
 - 栄養情報は概算値であることを明記
+
+## 出力形式
+最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **4** を返す（食事前アドバイスエージェントのID）。
 """
 
 
@@ -303,4 +307,6 @@ pre_meal_advisor_agent = Agent(
     description="食事前のアドバイスやレシピ提案を担当。「何を食べればいい？」「おすすめのレシピは？」等の質問に対応。",
     instruction=PRE_MEAL_ADVISOR_INSTRUCTION,
     tools=[get_current_datetime, get_meal_history, generate_custom_recipe, suggest_recipes],
+    output_schema=PreMealAdvisorAgentOutput,
+    output_key="pre_meal_advisor_output",
 )

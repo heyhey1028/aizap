@@ -1,8 +1,7 @@
-from pydantic import BaseModel, Field
-
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool
 
+from .schemas import RootAgentOutput
 from .sub_agents import (
     goal_setting_agent,
     pre_meal_advisor_agent,
@@ -10,15 +9,6 @@ from .sub_agents import (
     db_sample_agent,
     exercise_manager_agent,
 )
-
-
-class RootAgentOutput(BaseModel):
-    """root Agent の最終出力スキーマ。テキストと senderId を返す。"""
-
-    text: str = Field(description="ユーザーへの応答メッセージ（従来の string 出力）。")
-    sender_id: int = Field(description="送信元 ID（数値）。", alias="senderId")
-
-    model_config = {"populate_by_name": True}
 
 
 # root agent
@@ -105,20 +95,20 @@ exercise_manager_agent などサブエージェントが `finish_task` で対話
   - ルートは「サブエージェントから制御が戻ってきた時」に従い、目標設定完了を確認した上で「運動のより詳細な行動習慣計画を立てるか」をユーザーに促す
   - ユーザーが「運動の計画を立てたい」と言ったら exercise_manager_agent を呼び出す。運動管理エージェントがヒアリングを行い、Habit を作成する
 """,
-    tools=[
-        AgentTool(agent=goal_setting_agent),
-        AgentTool(agent=pre_meal_advisor_agent),
-        AgentTool(agent=meal_record_agent),
-        AgentTool(agent=db_sample_agent),
-        AgentTool(agent=exercise_manager_agent),
-    ],
-    # sub_agents=[
-    #     goal_setting_agent,
-    #     pre_meal_advisor_agent,
-    #     meal_record_agent,
-    #     db_sample_agent,
-    #     exercise_manager_agent,
+    # tools=[
+    #     AgentTool(agent=goal_setting_agent),
+    #     AgentTool(agent=pre_meal_advisor_agent),
+    #     AgentTool(agent=meal_record_agent),
+    #     AgentTool(agent=db_sample_agent),
+    #     AgentTool(agent=exercise_manager_agent),
     # ],
+    sub_agents=[
+        goal_setting_agent,
+        pre_meal_advisor_agent,
+        meal_record_agent,
+        db_sample_agent,
+        exercise_manager_agent,
+    ],
     output_schema=RootAgentOutput,
     output_key="root_agent_output",
 )

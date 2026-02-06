@@ -5,6 +5,7 @@
 
 from google.adk.agents import Agent
 
+from ..schemas import ExerciseManagerAgentOutput
 from ..tools.exercise_log_tools import (
     create_exercise_log,
     get_exercise_logs,
@@ -154,6 +155,9 @@ exercise_manager_agent = Agent(
 - 習慣計画と運動記録の違い：
   - 習慣計画 = これから定期的にやる予定（未来志向）
   - 運動記録 = 実際にやった記録（過去の実績）
+
+## 出力形式
+最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **3** を返す（運動管理エージェントのID）。
 """,
     tools=[
         create_exercise_log,
@@ -167,4 +171,6 @@ exercise_manager_agent = Agent(
         get_habits_by_routine,
         finish_task,
     ],
+    output_schema=ExerciseManagerAgentOutput,
+    output_key="exercise_manager_output",
 )

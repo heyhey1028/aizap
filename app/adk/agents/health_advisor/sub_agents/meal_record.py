@@ -5,6 +5,7 @@ from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 
 from ..db.config import get_async_session
+from ..schemas import MealRecordAgentOutput
 from ..db.repositories import DietLogRepository
 from ..logger import get_logger
 from ..utils import get_current_datetime
@@ -812,6 +813,9 @@ meal_record_agent = Agent(
 - 🍽️ 昼食（lunch）
 - 🌙 夕食（dinner）
 - 🍪 おやつ・間食（snack）
+
+## 出力形式
+最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **5** を返す（食事記録エージェントのID）。
 """,
     tools=[
         get_current_datetime,
@@ -821,4 +825,6 @@ meal_record_agent = Agent(
         get_today_diet_summary,
         get_meals_by_date,
     ],
+    output_schema=MealRecordAgentOutput,
+    output_key="meal_record_output",
 )

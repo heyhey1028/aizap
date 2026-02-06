@@ -1,6 +1,10 @@
 /**
  * Agent Engine streamQuery レスポンスから最終応答テキストを抽出する。
  *
+ * 想定: サブエージェントはツールではなくサブエージェントとして呼び出される。
+ * 応答はルートまたはいずれか1体のサブエージェントが直接出力するため、
+ * 最終イベントのテキストのみを取得すればよい（function_response は参照しない）。
+ *
  * streamQuery はイベント列（改行区切り JSON）を返すため、
  * ADK の is_final_response() 相当のロジックで最終イベントを判定する。
  *
@@ -188,7 +192,7 @@ export const extractFinalTextFromStream = (responseText: string): string => {
 };
 
 /**
- * root Agent の構造化出力スキーマ（ADK output_schema=RootAgentOutput に相当）。
+ * ルート／サブエージェントの構造化出力スキーマ（ADK output_schema に相当）。
  * プレーンテキストの場合は text のみ、JSON の場合は text と senderId を持つ。
  */
 export type StructuredAgentReply = {

@@ -202,8 +202,9 @@ export class AgentEngineClient {
   /**
    * 改行区切りレスポンスから構造化レスポンスを抽出する。
    *
-   * Agent Engine の streamQuery はイベント列を改行区切り JSON で返す。
-   * 最終イベントの text を抽出し、JSON の場合は text と senderId にパースする。
+   * 想定: サブエージェントはツールではなくサブエージェントとして呼び出されるため、
+   * 最終イベントの text のみを取得し、JSON の場合は text と senderId にパースする。
+   * function_response は参照しない。
    *
    * @see agent-engine-parser.ts - パースロジックの詳細
    * @param responseText Agent Engine のレスポンス
