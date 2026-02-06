@@ -13,27 +13,35 @@ export const EMPTY_RESPONSE_MESSAGE =
   'すみません、現在応答を生成できませんでした。もう一度お試しください。';
 
 export const getSender = (senderId: number): Sender | undefined => {
-  // senderId は 2-4（1 は root agent のため送信元表示なし）
-  if (senderId === 1 || senderId < 2 || senderId > 4) {
+  // senderId: 1=root, 2=goal_setting, 3=exercise_manager, 4=pre_meal_advisor, 5=meal_record
+  if (senderId < 1 || senderId > 5) {
     return undefined;
   }
 
   const senders: Sender[] = [
     {
+      name: 'a-zack',
+      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-burn.png',
+    }, // 1: root
+    {
+      name: '目標管理エージェント',
+      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-burn.png',
+    }, // 2: goal_setting
+    {
       name: 'a-burn',
       iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-burn.png',
-    },
+    }, // 3: exercise_manager
     {
       name: '食事前アドバイスエージェント',
       iconUrl:
         'https://ca.slack-edge.com/T012UQWDRQC-U0134037W2V-2c7ce4babac6-512',
-    },
+    }, // 4: pre_meal_advisor
     {
       name: '食事記録エージェント',
       iconUrl:
         'https://ca.slack-edge.com/T012UQWDRQC-U030W6J3X28-fd2dfc14b5c8-512',
-    },
+    }, // 5: meal_record
   ];
 
-  return senders[senderId - 2];
+  return senders[senderId - 1];
 };
