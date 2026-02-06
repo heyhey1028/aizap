@@ -17,6 +17,7 @@ from google.adk.tools import ToolContext
 
 # 相対インポート（health_advisor/ 内の db/ と logger.py を参照）
 from ..db.config import get_async_session
+from ..schemas import DbSampleAgentOutput
 from ..db.repositories import UserSessionRepository, GoalRepository, ExerciseLogRepository
 from ..logger import get_logger
 from ..tools.util_tools import finish_task
@@ -334,6 +335,9 @@ Goal や ExerciseLog を保存する前に、ユーザーセッションが存�
 ## タスク完了時
 依頼された処理（取得・保存・確認など）が完了したら、**必ず `finish_task` を呼び出し**、対話権をルートエージェントに戻すこと。summary には実施した内容の要約を簡潔に含めること。
 
+## 出力形式
+最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **1** を返す（開発用エージェントのためルートと同じID）。
+
 ## 注意
 このエージェントは開発・テスト用です。本番では使用しないでください。
 """,
@@ -344,5 +348,8 @@ Goal や ExerciseLog を保存する前に、ユーザーセッションが存�
         save_goal_to_db,
         get_exercise_logs_from_db,
         save_exercise_log_to_db,
+        finish_task
     ],
+    output_schema=DbSampleAgentOutput,
+    output_key="db_sample_output",
 )
