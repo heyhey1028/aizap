@@ -21,11 +21,11 @@ export const getSender = (senderId: number): Sender | undefined => {
   const senders: Sender[] = [
     {
       name: 'a-zack',
-      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-burn.png',
+      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-zack.png',
     }, // 1: root
     {
       name: '目標管理エージェント',
-      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/a-burn.png',
+      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/goal-setting.png',
     }, // 2: goal_setting
     {
       name: 'a-burn',
@@ -39,7 +39,7 @@ export const getSender = (senderId: number): Sender | undefined => {
     {
       name: '食事記録エージェント',
       iconUrl:
-        'https://ca.slack-edge.com/T012UQWDRQC-U030W6J3X28-fd2dfc14b5c8-512',
+        'https://storage.googleapis.com/aizap-prod-asset/food-advise.png',
     }, // 5: meal_record
   ];
 
