@@ -25,7 +25,8 @@ export const getSender = (senderId: number): Sender | undefined => {
     }, // 1: root
     {
       name: '目標管理エージェント',
-      iconUrl: 'https://storage.googleapis.com/aizap-prod-asset/goal-setting.png',
+      iconUrl:
+        'https://storage.googleapis.com/aizap-prod-asset/goal-setting.png',
     }, // 2: goal_setting
     {
       name: 'a-burn',
