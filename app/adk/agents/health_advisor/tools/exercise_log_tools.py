@@ -505,3 +505,172 @@ async def get_exercise_logs_by_date_range(
             "status": "error",
             "message": f"運動記録の取得中にエラーが発生しました: {str(e)}",
         }
+
+
+async def get_exercise_retrospective(
+    tool_context: ToolContext,
+    start_date: str,
+    end_date: str,
+) -> dict:
+    """指定期間の運動記録を集計し、レトロスペクティブ（振り返り）用のサマリーを返す。
+
+    ユーザーが指定した期間の運動実績を集計し、総セッション数・稼働日数・種目別・
+    カテゴリ別の内訳、総ボリューム・総時間・総距離などを返す。振り返りや振る舞いの分析に利用する。
+
+    Args:
+        tool_context: ADK が提供する ToolContext
+        start_date: 期間の開始日（ISO 8601 形式、例: "2026-01-01" または "2026-01-01T00:00:00"）
+        end_date: 期間の終了日（ISO 8601 形式、例: "2026-01-31" または "2026-01-31T23:59:59"）
+
+    Returns:
+        集計結果を含む辞書:
+        - status: "success", "not_found", または "error"
+        - message: 結果メッセージ
+        - start_date, end_date: 指定期間
+        - total_sessions: 総運動セッション数（記録数）
+        - active_days: 運動した日数（重複なし）
+        - total_volume: 総ボリューム（筋トレ、kg）
+        - total_duration_seconds: 総運動時間（秒）
+        - total_distance_km: 総距離（km）
+        - total_reps: 総レップ数
+        - by_category: カテゴリ別のセッション数・合計値
+        - by_exercise: 運動種目別のセッション数・合計値
+        - logs: 元の運動記録リスト（参照用）
+
+    Examples:
+        # 2026年1月の振り返り
+        >>> await get_exercise_retrospective(
+        ...     tool_context=ctx,
+        ...     start_date="2026-01-01",
+        ...     end_date="2026-01-31"
+        ... )
+    """
+    user_id = tool_context.user_id
+
+    try:
+        # 日付のみの場合は 00:00:00 / 23:59:59 に正規化
+        start_normalized = start_date.strip()
+        end_normalized = end_date.strip()
+        if "T" not in start_normalized:
+            start_normalized = f"{start_normalized}T00:00:00"
+        if "T" not in end_normalized:
+            end_normalized = f"{end_normalized}T23:59:59"
+
+        result = await get_exercise_logs_by_date_range(
+            tool_context=tool_context,
+            start_date=start_normalized,
+            end_date=end_normalized,
+            limit=None,
+        )
+
+        if result["status"] == "error":
+            return result
+        if result["status"] == "not_found":
+            return {
+                "status": "not_found",
+                "message": result["message"],
+                "start_date": start_normalized,
+                "end_date": end_normalized,
+                "total_sessions": 0,
+                "active_days": 0,
+                "total_volume": 0.0,
+                "total_duration_seconds": 0,
+                "total_distance_km": 0.0,
+                "total_reps": 0,
+                "by_category": {},
+                "by_exercise": {},
+                "logs": [],
+            }
+
+        logs = result["logs"]
+
+        # 集計
+        active_dates: set[str] = set()
+        total_volume = 0.0
+        total_duration = 0
+        total_distance = 0.0
+        total_reps = 0
+        by_category: dict[str, dict[str, Any]] = {}
+        by_exercise: dict[str, dict[str, Any]] = {}
+
+        for log in logs:
+            recorded = log.get("recorded_at") or ""
+            date_part = recorded.split("T")[0] if recorded else ""
+            if date_part:
+                active_dates.add(date_part)
+
+            vol = log.get("total_volume") or 0
+            dur = log.get("total_duration") or 0
+            dist = log.get("total_distance") or 0
+            reps = log.get("total_reps") or 0
+            total_volume += vol if isinstance(vol, (int, float)) else 0
+            total_duration += dur if isinstance(dur, (int, float)) else 0
+            total_distance += dist if isinstance(dist, (int, float)) else 0
+            total_reps += reps if isinstance(reps, (int, float)) else 0
+
+            cat = log.get("category") or "unknown"
+            if cat not in by_category:
+                by_category[cat] = {
+                    "sessions": 0,
+                    "total_volume": 0.0,
+                    "total_duration": 0,
+                    "total_distance": 0.0,
+                    "total_reps": 0,
+                }
+            by_category[cat]["sessions"] += 1
+            by_category[cat]["total_volume"] += vol if isinstance(vol, (int, float)) else 0
+            by_category[cat]["total_duration"] += dur if isinstance(dur, (int, float)) else 0
+            by_category[cat]["total_distance"] += dist if isinstance(dist, (int, float)) else 0
+            by_category[cat]["total_reps"] += reps if isinstance(reps, (int, float)) else 0
+
+            name = log.get("exercise_name") or "不明"
+            if name not in by_exercise:
+                by_exercise[name] = {
+                    "sessions": 0,
+                    "total_volume": 0.0,
+                    "total_duration": 0,
+                    "total_distance": 0.0,
+                    "total_reps": 0,
+                }
+            by_exercise[name]["sessions"] += 1
+            by_exercise[name]["total_volume"] += vol if isinstance(vol, (int, float)) else 0
+            by_exercise[name]["total_duration"] += dur if isinstance(dur, (int, float)) else 0
+            by_exercise[name]["total_distance"] += dist if isinstance(dist, (int, float)) else 0
+            by_exercise[name]["total_reps"] += reps if isinstance(reps, (int, float)) else 0
+
+        logger.info(
+            "運動レトロスペクティブを取得しました",
+            user_id=user_id,
+            start_date=start_normalized,
+            end_date=end_normalized,
+            total_sessions=len(logs),
+            active_days=len(active_dates),
+        )
+
+        return {
+            "status": "success",
+            "message": f"{start_normalized} ～ {end_normalized} の期間で {len(logs)} セッション、{len(active_dates)} 日間運動しました。",
+            "start_date": start_normalized,
+            "end_date": end_normalized,
+            "total_sessions": len(logs),
+            "active_days": len(active_dates),
+            "total_volume": round(total_volume, 2),
+            "total_duration_seconds": total_duration,
+            "total_distance_km": round(total_distance, 2),
+            "total_reps": total_reps,
+            "by_category": by_category,
+            "by_exercise": by_exercise,
+            "logs": logs,
+        }
+    except Exception as e:
+        logger.error(
+            "運動レトロスペクティブの取得に失敗しました",
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            error=str(e),
+        )
+        return {
+            "status": "error",
+            "message": f"振り返りの取得中にエラーが発生しました: {str(e)}",
+        }
