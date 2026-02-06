@@ -19,6 +19,7 @@ from google.adk.tools import ToolContext
 from ..db.config import get_async_session
 from ..db.repositories import UserSessionRepository, GoalRepository, ExerciseLogRepository
 from ..logger import get_logger
+from ..tools.util_tools import finish_task
 
 logger = get_logger(__name__)
 
@@ -323,9 +324,15 @@ db_sample_agent = Agent(
 - `get_exercise_logs_from_db`: 運動記録を取得
 - `save_exercise_log_to_db`: 運動記録を保存
 
+### 制御返却
+- `finish_task`: 依頼された処理を完了したら呼び出し、対話権をルートエージェントに戻す。summary には実施した処理の要約を簡潔に含める。
+
 ## 重要
 Goal や ExerciseLog を保存する前に、ユーザーセッションが存在する必要があります。
 セッションが存在しない場合は、先に `create_user_session_in_db` を呼び出してください。
+
+## タスク完了時
+依頼された処理（取得・保存・確認など）が完了したら、**必ず `finish_task` を呼び出し**、対話権をルートエージェントに戻すこと。summary には実施した内容の要約を簡潔に含めること。
 
 ## 注意
 このエージェントは開発・テスト用です。本番では使用しないでください。
