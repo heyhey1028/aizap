@@ -29,6 +29,10 @@ build-ts: ## Build for ts
 test-ts: ## Run test for ts
 	@cd app/bff && pnpm test
 
+.PHONY: adk-web
+adk-web: ## Run ADK web agents
+	@cd app/adk/ && uv run adk web agents
+
 # generate help from comment
 .PHONY: help
 help: ## Display this help screen
