@@ -18,6 +18,7 @@ from .habit_tools import (
     get_habits_by_routine,
     update_habit,
 )
+from .util_tools import finish_task
 
 __all__ = [
     "create_exercise_log",
@@ -31,4 +32,5 @@ __all__ = [
     "update_habit",
     "deactivate_habit",
     "activate_habit",
+    "finish_task",
 ]
