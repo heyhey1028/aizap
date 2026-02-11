@@ -4,7 +4,6 @@ from google.adk.tools import AgentTool
 from .schemas import RootAgentOutput
 from .sub_agents import (
     goal_setting_agent,
-    pre_meal_advisor_agent,
     meal_record_agent,
     db_sample_agent,
     exercise_manager_agent,
@@ -38,21 +37,18 @@ root_agent = Agent(
    - 過去の運動記録を確認したい
    - 運動習慣の詳細計画を立てたい（「運動の計画を立てたい」など。目標設定後にルートが促した「詳細な行動習慣計画」の一環でも可）
 
-3. **pre_meal_advisor_agent** を使うケース:
-   - 何を食べればいいか相談
-   - レシピ・メニューの提案依頼
-   - 「お腹すいた」「何食べよう」
-   - 食材名や条件を文字で伝えてレシピ相談
-
-4. **meal_record_agent** を使うケース:
+3. **meal_record_agent** を使うケース:
    - 食べたものを記録したい
    - 「〇〇を食べた」という報告
    - 食事の画像を送って「記録して」
    - カロリー計算してほしい
-   - 画像・動画・音声などのメディア入力（必ずここ）
+   - 何を食べればいいか相談
+   - レシピ・メニューの提案依頼
+   - 「お腹すいた」「何食べよう」
+   - 画像・動画・音声などのメディア入力
    - メディア入力の場合は、内容を簡潔に言語化してツールに渡す
 
-5. **db_sample_agent** を使うケース（開発用）:
+4. **db_sample_agent** を使うケース（開発用）:
    - DB アクセスのテスト
    - 「セッション情報を確認して」
    - 「目標を保存して」
@@ -83,8 +79,7 @@ exercise_manager_agent などサブエージェントが `finish_task` で対話
 - **1**: root（自分）が直接返す場合（挨拶、自己紹介、機能説明、判断に迷ったときの確認など）
 - **2**: goal_setting_agent のツール結果をそのまま返す場合
 - **3**: exercise_manager_agent のツール結果をそのまま返す場合
-- **4**: pre_meal_advisor_agent のツール結果をそのまま返す場合
-- **5**: meal_record_agent のツール結果をそのまま返す場合
+- **4**: meal_record_agent のツール結果をそのまま返す場合
 - **1**: 上記以外（db_sample_agent の結果など）はすべて 1
 
 ## 重要
@@ -97,14 +92,12 @@ exercise_manager_agent などサブエージェントが `finish_task` で対話
 """,
     # tools=[
     #     AgentTool(agent=goal_setting_agent),
-    #     AgentTool(agent=pre_meal_advisor_agent),
     #     AgentTool(agent=meal_record_agent),
     #     AgentTool(agent=db_sample_agent),
     #     AgentTool(agent=exercise_manager_agent),
     # ],
     sub_agents=[
         goal_setting_agent,
-        pre_meal_advisor_agent,
         meal_record_agent,
         db_sample_agent,
         exercise_manager_agent,

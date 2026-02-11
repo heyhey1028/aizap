@@ -1,7 +1,7 @@
 """エージェントの構造化出力スキーマ
 
 各エージェントは text と senderId を返す。
-senderId: 1=root, 2=goal_setting, 3=exercise_manager, 4=pre_meal_advisor, 5=meal_record
+senderId: 1=root, 2=goal_setting, 3=exercise_manager, 4=meal_record
 """
 
 from pydantic import BaseModel, Field
@@ -53,22 +53,11 @@ class ExerciseManagerAgentOutput(_AgentOutputBase):
     )
 
 
-class PreMealAdvisorAgentOutput(_AgentOutputBase):
-    """食事前アドバイザーサブエージェントの出力。"""
+class MealRecordAgentOutput(_AgentOutputBase):
+    """食事管理サブエージェントの出力。"""
 
     sender_id: int = Field(
         default=4,
-        description="送信元 ID。",
-        alias="senderId",
-        serialization_alias="senderId",
-    )
-
-
-class MealRecordAgentOutput(_AgentOutputBase):
-    """食事記録サブエージェントの出力。"""
-
-    sender_id: int = Field(
-        default=5,
         description="送信元 ID。",
         alias="senderId",
         serialization_alias="senderId",

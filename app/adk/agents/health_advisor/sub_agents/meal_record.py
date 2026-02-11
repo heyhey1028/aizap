@@ -9,6 +9,7 @@ from ..schemas import MealRecordAgentOutput
 from ..db.repositories import DietLogRepository
 from ..logger import get_logger
 from ..utils import get_current_datetime
+from .recipe_generator import generate_custom_recipe
 
 logger = get_logger(__name__)
 
@@ -429,8 +430,29 @@ async def record_meal(
 
     # 食材名をカンマ区切りで結合して食事名を作成
     if ingredients:
-        ingredient_names = ", ".join([ing["name"] for ing in ingredients])
-        name = f"{dish_name} ({ingredient_names})"
+        try:
+            # ingredients が辞書のリストの場合
+            ingredient_names = []
+            for ing in ingredients:
+                if isinstance(ing, dict):
+                    # "name" キーがあればそれを使用、なければ最初のキーの値を使用
+                    if "name" in ing:
+                        ingredient_names.append(str(ing["name"]))
+                    elif ing:
+                        # 辞書の最初の値を使用
+                        first_value = next(iter(ing.values()), None)
+                        if first_value:
+                            ingredient_names.append(str(first_value))
+                elif isinstance(ing, str):
+                    # 文字列の場合はそのまま使用
+                    ingredient_names.append(ing)
+            if ingredient_names:
+                name = f"{dish_name} ({', '.join(ingredient_names)})"
+            else:
+                name = dish_name
+        except Exception as e:
+            logger.warning("食材名の解析に失敗", error=str(e), ingredients=ingredients)
+            name = dish_name
     else:
         name = dish_name
 
@@ -482,10 +504,24 @@ async def record_meal(
         # 食材内訳テキストを生成
         ingredients_summary = None
         if ingredients:
-            ingredients_summary = [
-                f"{ing['name']} {ing.get('amount', '')}: {ing.get('calories', '?')}kcal"
-                for ing in ingredients
-            ]
+            try:
+                ingredients_summary = []
+                for ing in ingredients:
+                    if isinstance(ing, dict):
+                        ing_name = ing.get("name", "")
+                        ing_amount = ing.get("amount", "")
+                        ing_calories = ing.get("calories", "?")
+                        if ing_name:
+                            ingredients_summary.append(
+                                f"{ing_name} {ing_amount}: {ing_calories}kcal"
+                            )
+                    elif isinstance(ing, str):
+                        ingredients_summary.append(ing)
+                if not ingredients_summary:
+                    ingredients_summary = None
+            except Exception as e:
+                logger.warning("食材内訳の生成に失敗", error=str(e))
+                ingredients_summary = None
 
         return {
             "status": "success",
@@ -528,7 +564,7 @@ async def record_meal(
 meal_record_agent = Agent(
     model="gemini-2.5-flash",
     name="meal_record_agent",
-    description="食事の記録を担当。ユーザーが「〇〇を食べた」「これを記録して」と言った時に対応。画像からの食事分析・カロリー推定も可能。",
+    description="食事の記録・管理を担当。「〇〇を食べた」「記録して」「何食べればいい？」「レシピ教えて」等に対応。画像からの食事分析も可能。",
     instruction="""あなたは「ギャル栄養士」キャラの食事記録サポーターです。
 
 ## キャラクター設定
@@ -565,6 +601,9 @@ meal_record_agent = Agent(
 - `get_diet_logs_from_db`: 過去の食事履歴を取得（「最近何食べた？」「履歴見せて」など）
 - `get_today_diet_summary`: 本日のカロリー・PFC 合計を取得（「今日の合計は？」など）
 - `get_meals_by_date`: 日付を指定して食事記録を取得（「昨日の食事教えて」「1/1の朝何食べた？」など）
+
+### レシピ提案ツール
+- `generate_custom_recipe`: ユーザー条件に基づくカスタムレシピ生成（「何食べればいい？」「レシピ教えて」など）
 
 ## 食事記録の処理フロー
 
@@ -814,8 +853,82 @@ meal_record_agent = Agent(
 - 🌙 夕食（dinner）
 - 🍪 おやつ・間食（snack）
 
+## 食事アドバイスの処理フロー
+
+ユーザーが「何食べればいい？」「レシピ教えて」「お腹すいた」などと聞いてきた場合:
+
+### ステップ1: コンテキスト確認
+- `get_today_diet_summary` で今日のカロリー・PFC を確認
+- 残りカロリーと栄養バランスを把握
+
+### ステップ2: レシピ生成
+`generate_custom_recipe` を呼び出し、条件に合ったレシピを提案:
+- 残りカロリーに合わせた target_calories
+- ユーザーの要望に応じた priority（high_protein, low_fat 等）
+- 指定があれば main_ingredient
+
+**引数の対応表:**
+| ユーザーの要望 | priority引数 |
+|--------------|-------------|
+| 高タンパク、筋肉 | "high_protein" |
+| 低脂質 | "low_fat" |
+| 低糖質 | "low_carb" |
+| 満腹 | "filling" |
+| バランス良く | "balanced" |
+
+### ステップ3: フィードバック
+返されたガイドラインを元に、オリジナルレシピを創作して提案:
+- 料理名、栄養情報（カロリー・PFC）
+- 材料と作り方
+- 調理のポイント
+
+**フィードバック例:**
+```
+何食べるか迷ってるのね！今日の状況見てきたよ〜✨
+
+今日の合計: 1,200kcal（あと800kcalいけるよ！）
+P: 45g / F: 35g / C: 150g
+
+ちょっと炭水化物多めだから、夕食は高タンパクでいくのがおすすめ！
+600kcal、タンパク質多めで考えてみたよ〜💪
+
+---
+
+## 【鶏むね肉のレモンソテー】
+
+📊 **栄養情報（推定）**
+- カロリー: 約550kcal
+- タンパク質: 45g
+- 脂質: 15g
+- 炭水化物: 50g
+
+⏱️ **調理時間**: 約20分
+
+### 材料（1人分）
+- 鶏むね肉: 200g
+- ブロッコリー: 100g
+- 玄米ご飯: 100g
+- レモン: 1/4個
+- オリーブオイル: 小さじ1
+- 塩・胡椒: 少々
+
+### 作り方
+1. 鶏むね肉は削ぎ切りにして塩胡椒
+2. フライパンでオリーブオイルを熱し、鶏肉を焼く
+3. ブロッコリーは茹でて添える
+4. レモンを絞ってさっぱり仕上げ
+
+### ポイント
+- 鶏むね肉は削ぎ切りでパサつき防止！
+- レモンでさっぱり、減塩効果も◎
+
+---
+
+タンパク質もりもりで筋肉喜ぶやつ！ぜひ作ってみて〜💪✨
+```
+
 ## 出力形式
-最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **5** を返す（食事記録エージェントのID）。
+最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **4** を返す（食事管理エージェントのID）。
 """,
     tools=[
         get_current_datetime,
@@ -824,6 +937,7 @@ meal_record_agent = Agent(
         get_diet_logs_from_db,
         get_today_diet_summary,
         get_meals_by_date,
+        generate_custom_recipe,
     ],
     output_schema=MealRecordAgentOutput,
     output_key="meal_record_output",
