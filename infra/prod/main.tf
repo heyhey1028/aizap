@@ -317,7 +317,7 @@ module "cloud_run_bff" {
     PUBSUB_TOPIC_NAME = "aizap-webhook-events"
   }
   secrets                   = module.aizap_secrets.cloud_run_secrets
-  min_instance_count        = 0
+  min_instance_count        = 1
   max_instance_count        = 5
   allow_unauthenticated     = true
   cloud_sql_connection_name = null
@@ -347,7 +347,7 @@ module "cloud_run_worker" {
     GCS_MEDIA_BUCKET_NAME    = google_storage_bucket.line_media.name
   }
   secrets                   = module.aizap_secrets.cloud_run_secrets
-  min_instance_count        = 0
+  min_instance_count        = 1
   max_instance_count        = 5
   allow_unauthenticated     = false
   cloud_sql_connection_name = module.cloud_sql.connection_name
