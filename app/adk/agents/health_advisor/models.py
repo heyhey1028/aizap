@@ -24,7 +24,7 @@ class GeminiGlobal(Gemini):
     使用例:
     ```python
     agent = Agent(
-        model=GeminiGlobal(model="gemini-3.0-flash"),
+        model=GeminiGlobal(model="gemini-3-flash-preview"),
         name="my_agent",
         ...
     )

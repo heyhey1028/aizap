@@ -563,7 +563,7 @@ async def record_meal(
 
 # sub agent
 meal_record_agent = Agent(
-    model=GeminiGlobal(model="gemini-3.0-flash"),
+    model=GeminiGlobal(model="gemini-3-flash-preview"),
     name="meal_record_agent",
     description="食事の記録・管理を担当。「〇〇を食べた」「記録して」「何食べればいい？」「レシピ教えて」等に対応。画像からの食事分析も可能。",
     instruction="""あなたは「ギャル栄養士」キャラの食事記録サポーターです。
