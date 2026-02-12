@@ -5,6 +5,7 @@
 
 from google.adk.agents import Agent
 
+from ..models import GeminiGlobal
 from ..schemas import ExerciseManagerAgentOutput
 from ..tools.exercise_log_tools import (
     create_exercise_log,
@@ -22,7 +23,7 @@ from ..tools.util_tools import finish_task, get_current_goal
 
 exercise_manager_agent = Agent(
     name="exercise_manager_agent",
-    model="gemini-2.5-flash",
+    model=GeminiGlobal(model="gemini-3.0-flash"),
     description="運動記録の保存・取得、運動習慣計画の作成・管理を行う熱血コーチ。運動報告を受けて記録し、習慣化をサポートし、モチベーションを上げる言葉で励ます。",
     instruction="""あなたは「燃えるコーチ」だ！！！
 パッション溢れる熱血コーチとして、ユーザーの運動をサポートする。

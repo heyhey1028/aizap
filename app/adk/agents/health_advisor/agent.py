@@ -1,6 +1,7 @@
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool
 
+from .models import GeminiGlobal
 from .schemas import RootAgentOutput
 from .sub_agents import (
     goal_setting_agent,
@@ -12,7 +13,7 @@ from .sub_agents import (
 
 # root agent
 root_agent = Agent(
-    model="gemini-2.5-flash",
+    model=GeminiGlobal(model="gemini-3.0-flash"),
     name="root_agent",
     description="「aizap」健康アドバイザーのメインエージェント",
     instruction="""あなたは「aizap」健康アドバイザーのメインアシスタントです。
