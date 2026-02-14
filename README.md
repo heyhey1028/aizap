@@ -2,6 +2,8 @@
 
 AI Nutritionist & Coaching - 健康アドバイザーエージェント
 
+<img width="1016" height="438" alt="image" src="https://github.com/user-attachments/assets/a2496910-aa82-466a-aac5-43a2144fbc84" />
+
 ## 概要
 
 aizap は Google ADK (Agent Development Kit) を使用した AI 健康アドバイザーです。
