@@ -10,8 +10,9 @@ from google.genai import types
 DEFAULT_MODEL = "gemini-2.5-flash"
 
 # thinking_budget でモデルの思考量を制御（Gemini 2.5 系は thinkingBudget を使用）
+# -1 = 動的（モデルが必要に応じて自動調整）
 DEFAULT_PLANNER = BuiltInPlanner(
     thinking_config=types.ThinkingConfig(
-        thinking_budget=2048,
+        thinking_budget=-1,
     )
 )
