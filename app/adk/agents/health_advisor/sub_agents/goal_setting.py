@@ -6,7 +6,7 @@ from google.adk.agents import Agent
 from google.adk.tools import AgentTool, ToolContext
 
 from ..db.config import get_async_session
-from ..models import DEFAULT_GENERATE_CONTENT_CONFIG
+from ..models import DEFAULT_PLANNER
 from ..schemas import GoalSettingAgentOutput
 from ..db.repositories import GoalRepository, UserSessionRepository
 from ..logger import get_logger
@@ -118,7 +118,7 @@ async def set_user_health_goal(
 # sub agent
 goal_setting_agent = Agent(
     name="goal_setting_agent",
-    generate_content_config=DEFAULT_GENERATE_CONTENT_CONFIG,
+    planner=DEFAULT_PLANNER,
     description="健康目標の設定、確認、更新を担当するエージェント。ユーザーが目標について話したい時に使用。",
     instruction="""あなたは健康目標設定の専門家です。
 

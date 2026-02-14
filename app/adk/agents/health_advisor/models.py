@@ -11,12 +11,14 @@ import os
 from functools import cached_property
 
 from google.adk.models import Gemini
+from google.adk.planners import BuiltInPlanner
 from google.genai import Client, types
 
 
-# すべてのエージェントで共通の GenerateContentConfig
+# すべてのエージェントで共通の BuiltInPlanner
 # thinking_level を一括で管理するためにここで定義
-DEFAULT_GENERATE_CONTENT_CONFIG = types.GenerateContentConfig(
+# ※ ADK では thinking_config は generate_content_config ではなく planner 経由で設定する必要がある
+DEFAULT_PLANNER = BuiltInPlanner(
     thinking_config=types.ThinkingConfig(
         thinking_level="MINIMAL",
     )
