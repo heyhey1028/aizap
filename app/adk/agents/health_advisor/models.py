@@ -1,54 +1,17 @@
-"""カスタム Gemini モデルクラス
+"""共通モデル設定
 
-Gemini 3.0 Flash など、グローバルエンドポイントが必要なモデル向けのワークアラウンド。
-標準の Gemini クラスではリージョナルエンドポイントの解決に失敗するため、
-location="global" を明示的に指定してクライアントを初期化する。
-
-参考: https://github.com/google/adk-python/issues/1095
+すべてのエージェントで使用するモデルと thinking 設定を一元管理する。
+変更時はここを修正するだけで全エージェントに反映される。
 """
 
-import os
-from functools import cached_property
+from google.adk.planners import BuiltInPlanner
+from google.genai import types
 
-from google.adk.models import Gemini
-from google.genai import Client, types
+DEFAULT_MODEL = "gemini-2.5-flash"
 
-
-class GeminiGlobal(Gemini):
-    """グローバルエンドポイントを使用する Gemini モデル。
-
-    通常の Gemini クラスではデフォルトのロケーション解決ロジックにより、
-    特定のモデル（gemini-3.0-flash 等）でデプロイに失敗する場合がある。
-    このサブクラスでは Client に project と location="global" を明示的に渡すことで回避する。
-
-    使用例:
-    ```python
-    agent = Agent(
-        model=GeminiGlobal(model="gemini-3-flash-preview"),
-        name="my_agent",
-        ...
+# thinking_budget でモデルの思考量を制御（Gemini 2.5 系は thinkingBudget を使用）
+DEFAULT_PLANNER = BuiltInPlanner(
+    thinking_config=types.ThinkingConfig(
+        thinking_budget=2048,
     )
-    ```
-    """
-
-    @cached_property
-    def api_client(self) -> Client:
-        """明示的な設定で API クライアントを提供する。
-
-        Returns:
-            グローバルエンドポイントで初期化された API クライアント。
-        """
-        project = os.getenv("GOOGLE_CLOUD_PROJECT")
-        if not project:
-            raise ValueError(
-                "GOOGLE_CLOUD_PROJECT 環境変数が設定されていません。"
-            )
-
-        return Client(
-            project=project,
-            location="global",
-            http_options=types.HttpOptions(
-                headers=self._tracking_headers(),
-                retry_options=self.retry_options,
-            ),
-        )
+)

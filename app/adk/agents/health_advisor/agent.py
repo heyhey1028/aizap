@@ -1,19 +1,18 @@
 from google.adk.agents import Agent
-from google.adk.tools import AgentTool
 
-from .models import GeminiGlobal
+from .models import DEFAULT_MODEL, DEFAULT_PLANNER
 from .schemas import RootAgentOutput
 from .sub_agents import (
     goal_setting_agent,
     meal_record_agent,
-    db_sample_agent,
     exercise_manager_agent,
 )
 
 
 # root agent
 root_agent = Agent(
-    model=GeminiGlobal(model="gemini-3-flash-preview"),
+    model=DEFAULT_MODEL,
+    planner=DEFAULT_PLANNER,
     name="root_agent",
     description="「aizap」健康アドバイザーのメインエージェント",
     instruction="""あなたは「aizap」健康アドバイザーのメインアシスタントです。
@@ -49,13 +48,6 @@ root_agent = Agent(
    - 画像・動画・音声などのメディア入力
    - メディア入力の場合は、内容を簡潔に言語化してツールに渡す
 
-4. **db_sample_agent** を使うケース（開発用）:
-   - DB アクセスのテスト
-   - 「セッション情報を確認して」
-   - 「目標を保存して」
-   - 「運動記録をテストして」
-   - 「ユーザーを作成して」(ユーザーが作成された場合、ユーザーIDをユーザーに教えてください)
-
 ## 直接対応するケース
 - 挨拶（こんにちは等）には自分で応答してOK
 - 自己紹介も自分で行う
@@ -81,7 +73,7 @@ exercise_manager_agent などサブエージェントが `finish_task` で対話
 - **2**: goal_setting_agent のツール結果をそのまま返す場合
 - **3**: exercise_manager_agent のツール結果をそのまま返す場合
 - **4**: meal_record_agent のツール結果をそのまま返す場合
-- **1**: 上記以外（db_sample_agent の結果など）はすべて 1
+- **1**: 上記以外はすべて 1
 
 ## 重要
 - 判断に迷ったら、ユーザーに確認する
@@ -90,17 +82,15 @@ exercise_manager_agent などサブエージェントが `finish_task` で対話
   - goal_setting_agent が目標を保存すると finish_task でルートに戻る
   - ルートは「サブエージェントから制御が戻ってきた時」に従い、目標設定完了を確認した上で「運動のより詳細な行動習慣計画を立てるか」をユーザーに促す
   - ユーザーが「運動の計画を立てたい」と言ったら exercise_manager_agent を呼び出す。運動管理エージェントがヒアリングを行い、Habit を作成する
+
+## 出力フォーマット制約
+- LINE メッセージとして送信されるため、マークダウン記法（**太字**、*斜体*、# 見出し、- リスト等）は絶対に使わないこと
+- 箇条書きは「・」や「①②③」などの記号を使うこと
+- 強調したい場合は「」や『』で囲むこと
 """,
-    # tools=[
-    #     AgentTool(agent=goal_setting_agent),
-    #     AgentTool(agent=meal_record_agent),
-    #     AgentTool(agent=db_sample_agent),
-    #     AgentTool(agent=exercise_manager_agent),
-    # ],
     sub_agents=[
         goal_setting_agent,
         meal_record_agent,
-        db_sample_agent,
         exercise_manager_agent,
     ],
     output_schema=RootAgentOutput,

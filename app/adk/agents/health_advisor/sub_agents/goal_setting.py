@@ -6,6 +6,7 @@ from google.adk.agents import Agent
 from google.adk.tools import AgentTool, ToolContext
 
 from ..db.config import get_async_session
+from ..models import DEFAULT_MODEL, DEFAULT_PLANNER
 from ..schemas import GoalSettingAgentOutput
 from ..db.repositories import GoalRepository, UserSessionRepository
 from ..logger import get_logger
@@ -116,6 +117,8 @@ async def set_user_health_goal(
 
 # sub agent
 goal_setting_agent = Agent(
+    model=DEFAULT_MODEL,
+    planner=DEFAULT_PLANNER,
     name="goal_setting_agent",
     description="健康目標の設定、確認、更新を担当するエージェント。ユーザーが目標について話したい時に使用。",
     instruction="""あなたは健康目標設定の専門家です。
@@ -211,6 +214,11 @@ set_user_health_goalで保存する際は以下の形式で箇条書きにする
 
 ## 出力形式
 最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **2** を返す（目標設定エージェントのID）。
+
+## 出力フォーマット制約
+- LINE メッセージとして送信されるため、マークダウン記法（**太字**、*斜体*、# 見出し、- リスト等）は絶対に使わないこと
+- 箇条書きは「・」や「①②③」などの記号を使うこと
+- 強調したい場合は「」や『』で囲むこと
 """,
     tools=[
         get_user_health_goal,
