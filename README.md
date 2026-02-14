@@ -9,95 +9,21 @@ aizap は Google ADK (Agent Development Kit) を使用した AI 健康アドバ�
 
 ## アーキテクチャ
 
-```mermaid
-flowchart LR
-    subgraph User["User"]
-        LINEApp["LINE アプリ"]
-    end
-
-    subgraph LINE["LINE Platform"]
-        LINEServer["LINE サーバー"]
-    end
-
-    subgraph CICD["CI/CD"]
-        GitHubActions["GitHub Actions"]
-    end
-
-    subgraph GCP["GCP Project"]
-        subgraph CloudRunBFF["Cloud Run: aizap-bff"]
-            BFF["aizap-bff\n(TypeScript/Hono)"]
-        end
-
-        subgraph CloudRunWorker["Cloud Run: aizap-worker"]
-            Worker["aizap-worker\n(TypeScript/Hono)"]
-        end
-
-        subgraph CloudRunJob["Cloud Run Job"]
-            MigrateJob["aizap-db-migrate\n(Prisma Migration)"]
-        end
-
-        PubSub["Pub/Sub"]
-        GCS["Cloud Storage\n(LINE メディア)"]
-
-        subgraph CloudSQL["Cloud SQL"]
-            PostgreSQL["PostgreSQL"]
-        end
-
-        subgraph VertexAI["Vertex AI"]
-            AgentEngine["Agent Engine\n(ADK/Python)"]
-        end
-    end
-
-    subgraph External["External APIs"]
-        RakutenRecipe["楽天レシピ API"]
-        FitBit["FitBit API"]
-        Calendar["Calendar API"]
-        Etc["etc."]
-    end
-
-    %% Webhook flow (async)
-    LINEApp --> LINEServer
-    LINEServer -->|"Webhook"| BFF
-    BFF -->|"Publish"| PubSub
-    PubSub -->|"Push"| Worker
-    Worker -->|"REST API"| AgentEngine
-    Worker -->|"Push API"| LINEServer
-
-    %% LIFF flow (sync)
-    LINEApp -->|"LIFF URL"| BFF
-
-    %% Media storage
-    Worker -->|"Upload"| GCS
-    AgentEngine -->|"Read"| GCS
-
-    %% Database connections (BFF は接続しない)
-    Worker --> PostgreSQL
-    AgentEngine --> PostgreSQL
-    MigrateJob -->|"Migration"| PostgreSQL
-
-    %% CI/CD
-    GitHubActions -->|"Execute Job"| MigrateJob
-
-    %% Agent Engine dependencies
-    AgentEngine --> RakutenRecipe
-    AgentEngine --> FitBit
-    AgentEngine --> Calendar
-    AgentEngine --> Etc
-```
+![architecture](assets/architecture.png)
 
 ### コンポーネント
 
-| コンポーネント        | 技術スタック        | 説明                                                                        |
-| --------------------- | ------------------- | --------------------------------------------------------------------------- |
-| **aizap-bff**         | TypeScript / Hono   | LINE Webhook 受信 → Pub/Sub Publish、LIFF ホスト（DB 接続なし）             |
-| **aizap-worker**      | TypeScript / Hono   | Pub/Sub Push → Agent Engine REST API → LINE Push API、DB 接続、GCS Upload  |
-| **aizap-db-migrate**  | Cloud Run Job       | Prisma マイグレーション実行（デプロイ時に GitHub Actions から自動実行）     |
-| **Agent Engine**      | Python / ADK        | ADK エージェント（`app/adk/agents/` 配下）、DB 接続、GCS Read               |
-| **Cloud SQL**         | PostgreSQL          | データベース（Worker と Agent Engine から接続）                             |
-| **Cloud Storage**     | -                   | LINE メディア保存（画像/動画/音声）、Worker が Upload、Agent Engine が Read |
-| **Cloud Pub/Sub**     | -                   | Webhook 非同期処理（LINE 2 秒タイムアウト対策）                             |
-| **Artifact Registry** | -                   | コンテナイメージ保存                                                        |
-| **Workload Identity** | -                   | GitHub Actions → GCP 認証                                                   |
+| コンポーネント        | 技術スタック                | 説明                                                                                          |
+| --------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| **bff-service**       | TypeScript / Hono           | LINE Webhook 受信 → Pub/Sub Publish、LIFF ホスト、Loading Animation 表示（DB 接続なし）       |
+| **worker-service**    | TypeScript / Hono / Prisma  | Pub/Sub Push → Agent Engine REST API → LINE Push API、DB 接続、GCS Upload。sidecar に Cloud SQL Auth Proxy を使用 |
+| **db-migration-prisma** | Cloud Run Job             | Prisma マイグレーション実行（デプロイ時に GitHub Actions から自動実行）                       |
+| **Agent Engine**      | Python / ADK / SQLAlchemy   | ADK エージェント（`app/adk/agents/` 配下）、DB 接続、GCS Read/Write                          |
+| **Cloud SQL**         | PostgreSQL                  | データベース（Worker と Agent Engine から接続）                                               |
+| **Cloud Storage**     | -                           | LINE メディア保存（画像/動画/音声）、Worker が Upload、Agent Engine が Read/Write             |
+| **Cloud Pub/Sub**     | -                           | Webhook 非同期処理（LINE 2 秒タイムアウト対策）                                               |
+| **Artifact Registry** | -                           | コンテナイメージ保存                                                                          |
+| **Workload Identity** | -                           | GitHub Actions → GCP 認証                                                                     |
 
 ### 責務分離の方針
 
@@ -108,10 +34,11 @@ flowchart LR
 ### エージェント構成
 
 ```
-root_agent (gemini-2.5-flash)
-├── goal_setting_agent      # 健康目標の設定・確認
-├── pre_meal_advisor_agent  # 食事前のアドバイス・レシピ提案
-└── meal_record_agent       # 食事の記録・カロリー推定
+root_agent (gemini-3-flash-preview)
+├── goal_setting_agent       # 健康目標の設定・確認
+├── meal_record_agent        # 食事の記録・カロリー推定・レシピ提案
+├── exercise_manager_agent   # 運動記録・習慣計画
+└── db_sample_agent          # 開発用 DB テスト
 ```
 
 **委譲の仕組み:**
@@ -141,29 +68,43 @@ root_agent (gemini-2.5-flash)
 | dev  | [aizap-dev](https://console.cloud.google.com/welcome?project=aizap-dev)   | 開発・テスト |
 | prod | [aizap-prod](https://console.cloud.google.com/welcome?project=aizap-prod) | 本番         |
 
-## MVP 機能
-
-- **健康目標設定**: 減量、筋肉増量、睡眠改善などの目標を設定・管理
-- **食事前アドバイス**: 時間帯や過去の食事を考慮したメニュー提案
-- **食事記録**: テキストや画像から食事内容とカロリーを記録
-
 ## ディレクトリ構成
 
-```
+```text
 aizap/
 ├── .github/
 │   ├── actions/                    # 再利用可能な Composite Actions
 │   └── workflows/                  # CI/CD ワークフロー
 ├── app/
-│   ├── bff/                        # LINE Webhook, LIFF API
-│   ├── worker/                     # Pub/Sub -> Agent Engine -> LINE
-│   └── adk/                        # ADK エージェント
+│   ├── bff/                        # LINE Webhook, LIFF ホスト (TypeScript/Hono)
+│   │   └── src/
+│   │       ├── apis/               # Webhook, ヘルスチェック
+│   │       ├── clients/            # Pub/Sub, LINE SDK クライアント
+│   │       ├── middleware/         # 署名検証など
+│   │       └── pages/              # LIFF ページ (Hono JSX)
+│   ├── worker/                     # Pub/Sub → Agent Engine → LINE (TypeScript/Hono)
+│   │   ├── prisma/                 # スキーマ・マイグレーション
+│   │   └── src/
+│   │       ├── apis/               # Webhook, ヘルスチェック
+│   │       ├── clients/            # Agent Engine, LINE, GCS クライアント
+│   │       └── utils/              # メディア処理など
+│   └── adk/                        # ADK エージェント (Python)
 │       └── agents/
 │           └── health_advisor/
+│               ├── sub_agents/     # サブエージェント
+│               ├── tools/          # エージェントツール
+│               └── db/             # SQLAlchemy リポジトリ・モデル
 ├── infra/
 │   ├── dev/                        # 開発環境 Terraform
 │   ├── prod/                       # 本番環境 Terraform
 │   └── modules/                    # 共通モジュール
+│       ├── cloud_run/              # Cloud Run サービス定義
+│       ├── cloud_sql/              # Cloud SQL インスタンス
+│       ├── pubsub/                 # Pub/Sub Topic / Subscription
+│       ├── secret_manager/         # Secret Manager
+│       ├── service_account/        # サービスアカウント
+│       └── workload_identity/      # Workload Identity Federation
+├── assets/                         # アーキテクチャ図などの画像
 ├── docs/                           # 詳細ドキュメント
 └── README.md
 ```
