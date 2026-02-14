@@ -19,6 +19,7 @@ import {
   EMPTY_RESPONSE_MESSAGE,
   getSender,
 } from '@/config/constants.js';
+import { stripMarkdown } from '@/utils/markdown.js';
 import type { WebhookMessage } from '@/types/index.js';
 
 const api: Hono = new Hono();
@@ -148,8 +149,10 @@ api.post('/webhook', async (c) => {
     const response = await agentClient.query(userId, sessionId, message);
     logger.info({ userId }, 'Got Agent Engine response');
 
+    // マークダウン記法を除去（LLM の応答に含まれる場合のフォールバック）
+    const rawText = response.text.trim();
     const text =
-      response.text.trim().length > 0 ? response.text : EMPTY_RESPONSE_MESSAGE;
+      rawText.length > 0 ? stripMarkdown(rawText) : EMPTY_RESPONSE_MESSAGE;
     const sender: Sender | undefined = response.senderId
       ? getSender(response.senderId)
       : undefined;
