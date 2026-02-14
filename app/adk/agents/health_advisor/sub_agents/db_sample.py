@@ -17,6 +17,7 @@ from google.adk.tools import ToolContext
 
 # 相対インポート（health_advisor/ 内の db/ と logger.py を参照）
 from ..db.config import get_async_session
+from ..models import DEFAULT_GENERATE_CONTENT_CONFIG
 from ..schemas import DbSampleAgentOutput
 from ..db.repositories import UserSessionRepository, GoalRepository, ExerciseLogRepository
 from ..logger import get_logger
@@ -303,6 +304,7 @@ async def save_exercise_log_to_db(
 
 db_sample_agent = Agent(
     name="db_sample_agent",
+    generate_content_config=DEFAULT_GENERATE_CONTENT_CONFIG,
     description="DB アクセスのサンプル（開発用）。DB からの読み取り・書き込みの動作確認に使用。",
     instruction="""あなたは DB アクセスのテスト用エージェントです。
 

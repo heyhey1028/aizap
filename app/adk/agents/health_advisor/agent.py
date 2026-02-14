@@ -1,7 +1,7 @@
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool
 
-from .models import GeminiGlobal
+from .models import DEFAULT_GENERATE_CONTENT_CONFIG, GeminiGlobal
 from .schemas import RootAgentOutput
 from .sub_agents import (
     goal_setting_agent,
@@ -14,6 +14,7 @@ from .sub_agents import (
 # root agent
 root_agent = Agent(
     model=GeminiGlobal(model="gemini-3-flash-preview"),
+    generate_content_config=DEFAULT_GENERATE_CONTENT_CONFIG,
     name="root_agent",
     description="「aizap」健康アドバイザーのメインエージェント",
     instruction="""あなたは「aizap」健康アドバイザーのメインアシスタントです。

@@ -14,6 +14,15 @@ from google.adk.models import Gemini
 from google.genai import Client, types
 
 
+# すべてのエージェントで共通の GenerateContentConfig
+# thinking_level を一括で管理するためにここで定義
+DEFAULT_GENERATE_CONTENT_CONFIG = types.GenerateContentConfig(
+    thinking_config=types.ThinkingConfig(
+        thinking_level="MINIMAL",
+    )
+)
+
+
 class GeminiGlobal(Gemini):
     """グローバルエンドポイントを使用する Gemini モデル。
 
