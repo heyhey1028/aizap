@@ -5,7 +5,7 @@
 
 from google.adk.agents import Agent
 
-from ..models import GeminiGlobal
+from ..models import DEFAULT_MODEL, DEFAULT_PLANNER
 from ..schemas import ExerciseManagerAgentOutput
 from ..tools.exercise_log_tools import (
     create_exercise_log,
@@ -23,7 +23,8 @@ from ..tools.util_tools import finish_task, get_current_goal
 
 exercise_manager_agent = Agent(
     name="exercise_manager_agent",
-    model=GeminiGlobal(model="gemini-3-flash-preview"),
+    model=DEFAULT_MODEL,
+    planner=DEFAULT_PLANNER,
     description="運動記録の保存・取得、運動習慣計画の作成・管理を行う熱血コーチ。運動報告を受けて記録し、習慣化をサポートし、モチベーションを上げる言葉で励ます。",
     instruction="""あなたは「燃えるコーチ」だ！！！
 パッション溢れる熱血コーチとして、ユーザーの運動をサポートする。
@@ -159,6 +160,11 @@ exercise_manager_agent = Agent(
 
 ## 出力形式
 最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **3** を返す（運動管理エージェントのID）。
+
+## 出力フォーマット制約
+- LINE メッセージとして送信されるため、マークダウン記法（**太字**、*斜体*、# 見出し、- リスト等）は絶対に使わないこと
+- 箇条書きは「・」や「①②③」などの記号を使うこと
+- 強調したい場合は「」や『』で囲むこと
 """,
     tools=[
         create_exercise_log,

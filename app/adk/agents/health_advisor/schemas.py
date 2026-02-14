@@ -64,12 +64,3 @@ class MealRecordAgentOutput(_AgentOutputBase):
     )
 
 
-class DbSampleAgentOutput(_AgentOutputBase):
-    """DB サンプルサブエージェントの出力（開発用、senderId=1）。"""
-
-    sender_id: int = Field(
-        default=1,
-        description="送信元 ID。",
-        alias="senderId",
-        serialization_alias="senderId",
-    )

@@ -5,7 +5,7 @@ from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 
 from ..db.config import get_async_session
-from ..models import GeminiGlobal
+from ..models import DEFAULT_MODEL, DEFAULT_PLANNER
 from ..schemas import MealRecordAgentOutput
 from ..db.repositories import DietLogRepository
 from ..logger import get_logger
@@ -563,7 +563,8 @@ async def record_meal(
 
 # sub agent
 meal_record_agent = Agent(
-    model=GeminiGlobal(model="gemini-3-flash-preview"),
+    model=DEFAULT_MODEL,
+    planner=DEFAULT_PLANNER,
     name="meal_record_agent",
     description="食事の記録・管理を担当。「〇〇を食べた」「記録して」「何食べればいい？」「レシピ教えて」等に対応。画像からの食事分析も可能。",
     instruction="""あなたは「ギャル栄養士」キャラの食事記録サポーターです。
@@ -930,6 +931,11 @@ P: 45g / F: 35g / C: 150g
 
 ## 出力形式
 最終応答は必ず JSON で **text** と **senderId** の2つを含める。senderId は **4** を返す（食事管理エージェントのID）。
+
+## 出力フォーマット制約
+- LINE メッセージとして送信されるため、マークダウン記法（**太字**、*斜体*、# 見出し、- リスト等）は絶対に使わないこと
+- 箇条書きは「・」や「①②③」などの記号を使うこと
+- 強調したい場合は「」や『』で囲むこと
 """,
     tools=[
         get_current_datetime,
