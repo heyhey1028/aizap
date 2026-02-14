@@ -1,7 +1,7 @@
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool
 
-from .models import DEFAULT_MODEL
+from .models import DEFAULT_MODEL, DEFAULT_PLANNER
 from .schemas import RootAgentOutput
 from .sub_agents import (
     goal_setting_agent,
@@ -14,6 +14,7 @@ from .sub_agents import (
 # root agent
 root_agent = Agent(
     model=DEFAULT_MODEL,
+    planner=DEFAULT_PLANNER,
     name="root_agent",
     description="「aizap」健康アドバイザーのメインエージェント",
     instruction="""あなたは「aizap」健康アドバイザーのメインアシスタントです。

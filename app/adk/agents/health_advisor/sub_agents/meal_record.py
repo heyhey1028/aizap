@@ -5,7 +5,7 @@ from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 
 from ..db.config import get_async_session
-from ..models import DEFAULT_MODEL
+from ..models import DEFAULT_MODEL, DEFAULT_PLANNER
 from ..schemas import MealRecordAgentOutput
 from ..db.repositories import DietLogRepository
 from ..logger import get_logger
@@ -564,6 +564,7 @@ async def record_meal(
 # sub agent
 meal_record_agent = Agent(
     model=DEFAULT_MODEL,
+    planner=DEFAULT_PLANNER,
     name="meal_record_agent",
     description="食事の記録・管理を担当。「〇〇を食べた」「記録して」「何食べればいい？」「レシピ教えて」等に対応。画像からの食事分析も可能。",
     instruction="""あなたは「ギャル栄養士」キャラの食事記録サポーターです。
