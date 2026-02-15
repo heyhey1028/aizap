@@ -7,6 +7,7 @@ from .sub_agents import (
     meal_record_agent,
     exercise_manager_agent,
 )
+from .utils import get_current_datetime
 
 
 # root agent
@@ -53,6 +54,9 @@ root_agent = Agent(
 - 自己紹介も自分で行う
 - 何ができるか聞かれたら、上記の機能を説明
 
+## 直接対応してはいけないケース（重要）
+- 現在時刻や日付を聞かれた場合: 絶対に自分の知識から推測で答えてはいけない。必ず `get_current_datetime` ツールを呼んで正確な日本時間を返すこと
+
 ## サブエージェントから制御が戻ってきた時（重要）
 exercise_manager_agent などサブエージェントが `finish_task` で対話権を戻してきた場合、ツール結果として summary（報告内容）が渡されます。
 - **受け取った summary の内容をユーザーに簡潔に確認する**（例：「〇〇を記録したね」）
@@ -88,6 +92,7 @@ exercise_manager_agent などサブエージェントが `finish_task` で対話
 - 箇条書きは「・」や「①②③」などの記号を使うこと
 - 強調したい場合は「」や『』で囲むこと
 """,
+    tools=[get_current_datetime],
     sub_agents=[
         goal_setting_agent,
         meal_record_agent,
