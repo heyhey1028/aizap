@@ -219,14 +219,14 @@ export class AgentEngineClient {
     const reply = parseStructuredReply(finalText);
 
     // senderId がテキストの JSON から取得できなかった場合、
-    // ストリームの transfer_to_agent イベントからフォールバック推定する
+    // ストリームの author フィールド等からフォールバック推定する
     if (reply.senderId === undefined) {
       const fallbackId = detectSenderIdFromStream(responseText);
       if (fallbackId !== undefined) {
         reply.senderId = fallbackId;
         logger.info(
           { senderId: fallbackId },
-          'senderId detected from transfer_to_agent fallback'
+          'senderId detected from stream event fallback'
         );
       }
     }

@@ -212,11 +212,18 @@ const AGENT_SENDER_ID_MAP: Record<string, number> = {
 };
 
 /**
- * streamQuery のイベント列から、最後に transfer_to_agent された
- * サブエージェント名を検出し、対応する senderId を返す。
+ * streamQuery のイベント列から応答エージェントの senderId を検出する。
  *
  * output_schema の senderId がテキストから取得できない場合の
  * フォールバックとして使用する。
+ *
+ * 検出方法（優先順）:
+ * 1. 各イベントの author フィールド（ADK Event には必ず author が含まれる）
+ *    から、最後にテキストを出力したエージェント名を取得する。
+ *    2回目以降のリクエスト（既に transfer 済み）では transfer_to_agent が
+ *    呼ばれないため、author ベースの検出が必要。
+ * 2. transfer_to_agent の function_call から転送先エージェント名を取得する
+ *    （初回 transfer 時のフォールバック）。
  *
  * @param responseText streamQuery のレスポンス全文
  * @returns 検出された senderId、見つからない場合は undefined
@@ -225,8 +232,26 @@ export function detectSenderIdFromStream(
   responseText: string
 ): number | undefined {
   const events = parseStreamEvents(responseText);
-  let lastAgentName: string | undefined;
 
+  // 方法1: author フィールドから検出
+  // ADK Event の author フィールドにエージェント名が入る。
+  // 最終テキストイベントの author を使う。
+  let lastTextAuthor: string | undefined;
+  for (const event of events) {
+    const author = event.author;
+    if (typeof author !== 'string' || author.length === 0) continue;
+    const parts = extractParts(event);
+    const textParts = extractTextParts(parts);
+    if (textParts.length > 0) {
+      lastTextAuthor = author;
+    }
+  }
+  if (lastTextAuthor && AGENT_SENDER_ID_MAP[lastTextAuthor] !== undefined) {
+    return AGENT_SENDER_ID_MAP[lastTextAuthor];
+  }
+
+  // 方法2: transfer_to_agent の function_call から検出（フォールバック）
+  let lastAgentName: string | undefined;
   for (const event of events) {
     const parts = extractParts(event);
     for (const part of parts) {
