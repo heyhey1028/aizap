@@ -201,6 +201,78 @@ export type StructuredAgentReply = {
 };
 
 /**
+ * サブエージェント名 → senderId のマッピング。
+ * schemas.py の senderId 定義と一致させる。
+ */
+const AGENT_SENDER_ID_MAP: Record<string, number> = {
+  root_agent: 1,
+  goal_setting_agent: 2,
+  exercise_manager_agent: 3,
+  meal_record_agent: 4,
+};
+
+/**
+ * streamQuery のイベント列から応答エージェントの senderId を検出する。
+ *
+ * output_schema の senderId がテキストから取得できない場合の
+ * フォールバックとして使用する。
+ *
+ * 検出方法（優先順）:
+ * 1. 各イベントの author フィールド（ADK Event には必ず author が含まれる）
+ *    から、最後にテキストを出力したエージェント名を取得する。
+ *    2回目以降のリクエスト（既に transfer 済み）では transfer_to_agent が
+ *    呼ばれないため、author ベースの検出が必要。
+ * 2. transfer_to_agent の function_call から転送先エージェント名を取得する
+ *    （初回 transfer 時のフォールバック）。
+ *
+ * @param responseText streamQuery のレスポンス全文
+ * @returns 検出された senderId、見つからない場合は undefined
+ */
+export function detectSenderIdFromStream(
+  responseText: string
+): number | undefined {
+  const events = parseStreamEvents(responseText);
+
+  // 方法1: author フィールドから検出
+  // ADK Event の author フィールドにエージェント名が入る。
+  // 最終テキストイベントの author を使う。
+  let lastTextAuthor: string | undefined;
+  for (const event of events) {
+    const author = event.author;
+    if (typeof author !== 'string' || author.length === 0) continue;
+    const parts = extractParts(event);
+    const textParts = extractTextParts(parts);
+    if (textParts.length > 0) {
+      lastTextAuthor = author;
+    }
+  }
+  if (lastTextAuthor && AGENT_SENDER_ID_MAP[lastTextAuthor] !== undefined) {
+    return AGENT_SENDER_ID_MAP[lastTextAuthor];
+  }
+
+  // 方法2: transfer_to_agent の function_call から検出（フォールバック）
+  let lastAgentName: string | undefined;
+  for (const event of events) {
+    const parts = extractParts(event);
+    for (const part of parts) {
+      const fc = part.function_call;
+      if (
+        isRecord(fc) &&
+        fc.name === 'transfer_to_agent' &&
+        isRecord(fc.args)
+      ) {
+        const args = fc.args as Record<string, unknown>;
+        if (typeof args.agent_name === 'string') {
+          lastAgentName = args.agent_name;
+        }
+      }
+    }
+  }
+
+  return lastAgentName ? AGENT_SENDER_ID_MAP[lastAgentName] : undefined;
+}
+
+/**
  * 最終応答テキストを構造化レスポンスにパースする。
  * JSON で text と senderId を持つ場合は両方を返し、それ以外は text のみとする。
  *
@@ -220,10 +292,18 @@ export function parseStructuredReply(raw: string): StructuredAgentReply {
       'text' in parsed &&
       typeof (parsed as { text: unknown }).text === 'string'
     ) {
-      const obj = parsed as { text: string; senderId?: number };
+      // senderId（camelCase）と sender_id（snake_case）の両方に対応
+      // ADK の output_schema で Pydantic alias を設定していても、
+      // LLM が snake_case で出力する場合がある
+      const obj = parsed as {
+        text: string;
+        senderId?: number;
+        sender_id?: number;
+      };
+      const rawSenderId = obj.senderId ?? obj.sender_id;
       const senderId =
-        typeof obj.senderId === 'number' && Number.isFinite(obj.senderId)
-          ? obj.senderId
+        typeof rawSenderId === 'number' && Number.isFinite(rawSenderId)
+          ? rawSenderId
           : undefined;
       return { text: obj.text, senderId };
     }

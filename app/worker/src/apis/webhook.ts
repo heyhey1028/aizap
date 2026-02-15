@@ -147,7 +147,10 @@ api.post('/webhook', async (c) => {
 
     const agentClient = getAgentEngineClient();
     const response = await agentClient.query(userId, sessionId, message);
-    logger.info({ userId }, 'Got Agent Engine response');
+    logger.info(
+      { userId, senderId: response.senderId ?? null },
+      'Got Agent Engine response'
+    );
 
     // マークダウン記法を除去（LLM の応答に含まれる場合のフォールバック）
     const rawText = response.text.trim();

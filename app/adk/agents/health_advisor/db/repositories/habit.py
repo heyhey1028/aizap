@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Habit
 from .base import BaseRepository
+from ...utils import get_jst_now
 
 
 class HabitRepository(BaseRepository[Habit]):
@@ -78,7 +79,9 @@ class HabitRepository(BaseRepository[Habit]):
         if is_active is not None:
             stmt = stmt.where(Habit.is_active == is_active)
 
-        stmt = stmt.order_by(Habit.priority.desc(), Habit.start_date.desc()).limit(limit)
+        stmt = stmt.order_by(Habit.priority.desc(), Habit.start_date.desc()).limit(
+            limit
+        )
 
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
@@ -212,7 +215,7 @@ class HabitRepository(BaseRepository[Habit]):
             days_of_week=days_of_week,
             time_of_day=time_of_day,
             is_active=is_active,
-            start_date=start_date or datetime.now(),
+            start_date=start_date or get_jst_now(),
             end_date=end_date,
             notes=notes,
             priority=priority,

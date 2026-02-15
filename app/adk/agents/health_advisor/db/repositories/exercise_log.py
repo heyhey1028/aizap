@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import ExerciseLog
 from .base import BaseRepository
+from ...utils import get_jst_now
 
 
 class ExerciseLogRepository(BaseRepository[ExerciseLog]):
@@ -163,5 +164,5 @@ class ExerciseLogRepository(BaseRepository[ExerciseLog]):
             total_distance=total_distance,
             total_volume=total_volume,
             note=note,
-            recorded_at=recorded_at or datetime.now(),
+            recorded_at=recorded_at or get_jst_now(),
         )

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 
 from google.adk.agents import Agent
@@ -9,7 +9,12 @@ from ..models import DEFAULT_MODEL, DEFAULT_PLANNER
 from ..schemas import MealRecordAgentOutput
 from ..db.repositories import DietLogRepository
 from ..logger import get_logger
-from ..utils import get_current_datetime
+from ..utils import (
+    get_current_datetime,
+    get_jst_now,
+    get_today_range_jst,
+    parse_date_jst,
+)
 from .recipe_generator import generate_custom_recipe
 
 logger = get_logger(__name__)
@@ -93,8 +98,8 @@ async def get_today_diet_summary(tool_context: ToolContext) -> dict:
         async with get_async_session() as session:
             repo = DietLogRepository(session)
 
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow = today + timedelta(days=1)
+            # JST の「今日」を基準にする（UTC だと日本時間とズレる）
+            today, tomorrow = get_today_range_jst()
 
             logs = await repo.get_by_date_range(user_id, today, tomorrow)
 
@@ -215,7 +220,15 @@ async def update_meal(
 
             # 差分を計算
             diff = {}
-            for key in ["calories", "protein_g", "fat_g", "carbs_g", "sodium_mg", "fiber_g", "sugar_g"]:
+            for key in [
+                "calories",
+                "protein_g",
+                "fat_g",
+                "carbs_g",
+                "sodium_mg",
+                "fiber_g",
+                "sugar_g",
+            ]:
                 before_val = before.get(key) or 0
                 after_val = after.get(key) or 0
                 if before_val != after_val:
@@ -227,15 +240,14 @@ async def update_meal(
 
             logger.info("食事記録を更新しました", user_id=user_id, log_id=log_id)
 
-            # 本日の合計を再計算
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow = today + timedelta(days=1)
+            # JST の「今日」を基準に合計を再計算
+            today, tomorrow = get_today_range_jst()
             today_logs = await repo.get_by_date_range(user_id, today, tomorrow)
 
-            today_calories = sum(l.calories for l in today_logs)
-            today_proteins = sum(l.proteins for l in today_logs)
-            today_fats = sum(l.fats for l in today_logs)
-            today_carbs = sum(l.carbohydrates for l in today_logs)
+            today_calories = sum(log.calories for log in today_logs)
+            today_proteins = sum(log.proteins for log in today_logs)
+            today_fats = sum(log.fats for log in today_logs)
+            today_carbs = sum(log.carbohydrates for log in today_logs)
 
             return {
                 "status": "success",
@@ -253,7 +265,9 @@ async def update_meal(
             }
 
     except Exception as e:
-        logger.error("食事記録の更新に失敗", user_id=user_id, log_id=log_id, error=str(e))
+        logger.error(
+            "食事記録の更新に失敗", user_id=user_id, log_id=log_id, error=str(e)
+        )
         return {
             "status": "error",
             "message": "食事記録の更新中にエラーが発生しました。",
@@ -278,16 +292,15 @@ async def get_meals_by_date(
     user_id = tool_context.user_id
 
     try:
-        # 日付をパース
+        # 日付を JST でパース
         try:
-            date = datetime.strptime(target_date, "%Y-%m-%d")
+            start_date = parse_date_jst(target_date)
         except ValueError:
             return {
                 "status": "invalid_date",
                 "message": f"日付の形式が不正です。YYYY-MM-DD 形式で指定してください: {target_date}",
             }
 
-        start_date = date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = start_date + timedelta(days=1)
 
         async with get_async_session() as session:
@@ -385,11 +398,13 @@ async def record_meal(
     sugar_g: Optional[float] = None,
     image_url: Optional[str] = None,
     note: Optional[str] = None,
+    meal_date: Optional[str] = None,
+    meal_hour: Optional[int] = None,
 ) -> dict:
-    """食事を分析して即座に DB に記録します。
+    """食事を分析して DB に記録します。
 
     エージェントが画像またはテキストから分析した結果を受け取り、
-    確認なしで直接 DB に保存します。
+    DB に保存します。ユーザーに「いつの食事か」を確認してから呼び出すこと。
 
     Args:
         tool_context: ADK が提供する ToolContext
@@ -407,6 +422,8 @@ async def record_meal(
         sugar_g: 糖質（g、オプション）
         image_url: 食事画像URL（オプション）
         note: メモ（オプション）
+        meal_date: 食事の日付（"YYYY-MM-DD" 形式、オプション）。省略時は現在の日本時間の日付を使用。
+        meal_hour: 食事のおおよその時刻（0-23、オプション）。省略時は現在の日本時間の時刻を使用。
 
     Returns:
         dict: 記録結果と本日の合計情報
@@ -457,7 +474,34 @@ async def record_meal(
     else:
         name = dish_name
 
-    recorded_at = datetime.now()
+    # JST で記録時刻を設定
+    # meal_date / meal_hour が指定されている場合はそちらを優先
+    now_jst = get_jst_now()
+    if meal_date:
+        try:
+            recorded_at = parse_date_jst(meal_date)
+            # 時刻を設定（meal_hour があればその時刻、なければ meal_type から推定）
+            if meal_hour is not None:
+                recorded_at = recorded_at.replace(hour=meal_hour, minute=0)
+            else:
+                # meal_type から代表的な時刻を設定
+                meal_type_hours = {
+                    "breakfast": 8,
+                    "lunch": 12,
+                    "dinner": 19,
+                    "snack": 15,
+                }
+                recorded_at = recorded_at.replace(
+                    hour=meal_type_hours.get(meal_type, 12), minute=0
+                )
+        except ValueError:
+            # パース失敗時は現在時刻を使用
+            logger.warning(
+                "meal_date のパースに失敗、現在時刻を使用", meal_date=meal_date
+            )
+            recorded_at = now_jst
+    else:
+        recorded_at = now_jst
 
     try:
         async with get_async_session() as session:
@@ -483,15 +527,14 @@ async def record_meal(
 
             logger.info("食事記録を保存しました", user_id=user_id, log_id=log.id)
 
-            # 本日の合計を DB から計算
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow = today + timedelta(days=1)
+            # JST の「今日」を基準に合計を計算
+            today, tomorrow = get_today_range_jst()
             today_logs = await repo.get_by_date_range(user_id, today, tomorrow)
 
-            today_calories = sum(l.calories for l in today_logs)
-            today_proteins = sum(l.proteins for l in today_logs)
-            today_fats = sum(l.fats for l in today_logs)
-            today_carbs = sum(l.carbohydrates for l in today_logs)
+            today_calories = sum(log.calories for log in today_logs)
+            today_proteins = sum(log.proteins for log in today_logs)
+            today_fats = sum(log.fats for log in today_logs)
+            today_carbs = sum(log.carbohydrates for log in today_logs)
 
         # 目標カロリーと残りカロリーを計算
         health_goal = tool_context.state.get("health_goal")
@@ -595,8 +638,8 @@ meal_record_agent = Agent(
 ## 使用するツール
 
 ### 記録ツール
-- `get_current_datetime`: 現在時刻を確認（食事タイプの判断に使用）
-- `record_meal`: 食事を分析して即座に DB に記録
+- `get_current_datetime`: 現在の日本時間を確認（食事タイプの判断に使用）
+- `record_meal`: 食事を DB に記録。meal_date（日付）と meal_hour（時刻）で記録日時を指定可能
 - `update_meal`: 既存の食事記録を更新（「さっきのお米もっと多かった」など）
 
 ### 履歴・統計ツール
@@ -609,14 +652,49 @@ meal_record_agent = Agent(
 
 ## 食事記録の処理フロー
 
-ユーザーが食事の画像またはテキストを送ってきたら、**確認なしで即座に記録**します。
+### ステップ1: 時刻確認と分析（必須）
+1. **最初に必ず `get_current_datetime` を呼んで現在の日本時間を確認する**
+2. 現在時刻から meal_type を判断する（食事タイプの判断セクション参照）
+3. 画像の場合: 画像を直接見て、料理名・食材・栄養素を分析
+4. テキストの場合: テキストから料理名・食材・栄養素を推定
 
-### ステップ1: 分析
-1. 画像の場合: 画像を直接見て、料理名・食材・栄養素を分析
-2. テキストの場合: テキストから料理名・食材・栄養素を推定
-3. `get_current_datetime` で時刻確認 → meal_type を判断
+### ステップ2: いつの食事か確認（重要！）
+食事のタイミングが明確でない場合は、**記録する前に必ずユーザーに確認**する。
+LINE では画像とメッセージを同時に送れないため、画像だけ送られてくるケースが多い。
 
-### ステップ2: 即座に記録
+**確認が不要なケース（そのまま記録してOK）:**
+- テキストに明確な時間情報がある場合（「今日の朝食」「さっきのランチ」「昨日の夜ご飯」など）
+- 「今食べた」「これ食べてる」など、今の食事であることが明らかな場合
+
+**確認が必要なケース（必ず聞く）:**
+- 画像のみが送られてきた場合（時間の情報がない）
+- テキストに時間情報がない場合（「カレー食べた」だけなど）
+
+**確認の聞き方:**
+ステップ1で取得した現在時刻から判断した meal_type を①に反映する。
+例えば 12:30 なら「①さっきのお昼」、8:00 なら「①今の朝ごはん」、19:00 なら「①今の夜ごはん」。
+ギャル口調で、画像の内容にも触れつつ聞く。
+
+例（12:30 にカレーの画像が来た場合）:
+えっ、カレーじゃん！めっちゃおいしそ〜！✨
+ねぇねぇ、これいつ食べたやつ？
+①さっきのお昼
+②今日の朝ごはん
+③今日の夜ごはん
+④昨日のごはん
+⑤それ以外（教えて〜！）
+
+例（8:00 にトーストの画像が来た場合）:
+わ〜朝からちゃんと食べてて偉すぎ！✨
+これいつのごはん？
+①今の朝ごはん
+②昨日の夜ごはん
+③昨日のお昼
+④それ以外（教えて〜！）
+
+ユーザーの回答を受け取ってから meal_type と recorded_at を決定し、ステップ3に進む。
+
+### ステップ3: 記録
 `record_meal` を呼び出して記録。**できるだけ多くのフィールドを分析・推定**する:
 
 必須項目:
@@ -635,8 +713,10 @@ meal_record_agent = Agent(
 - fiber_g: 食物繊維（g）- 野菜、穀物から推定
 - sugar_g: 糖質（g）- 甘い料理、デザート、飲み物で推定
 - note: 特記事項があれば
+- meal_date: 食事の日付（"YYYY-MM-DD" 形式）。「今の食事」なら省略OK。昨日や別の日の食事なら必ず指定。
+- meal_hour: 食事のおおよその時刻（0-23）。省略時は meal_type から推定。
 
-### ステップ3: フィードバック
+### ステップ4: フィードバック
 `record_meal` のレスポンスを使って、以下の情報を含めて報告:
 
 **必ず含める情報:**

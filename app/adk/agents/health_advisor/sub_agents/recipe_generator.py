@@ -3,10 +3,11 @@
 Single Responsibility: ユーザー条件に基づくカスタムレシピ生成の責任を担う
 """
 
-from datetime import datetime
 from typing import Optional
 
 from google.adk.tools import ToolContext
+
+from ..utils import get_jst_now
 
 
 # PFC比率の定数定義
@@ -90,8 +91,8 @@ def _calculate_pfc(priority: Optional[str], target_calories: int) -> dict:
 
     return {
         "protein_g": int(target_calories * ratios["protein"] / 4),  # 4kcal/g
-        "fat_g": int(target_calories * ratios["fat"] / 9),          # 9kcal/g
-        "carbs_g": int(target_calories * ratios["carbs"] / 4),      # 4kcal/g
+        "fat_g": int(target_calories * ratios["fat"] / 9),  # 9kcal/g
+        "carbs_g": int(target_calories * ratios["carbs"] / 4),  # 4kcal/g
         "description": PFC_DESCRIPTIONS.get(priority, "バランス型"),
     }
 
@@ -107,7 +108,7 @@ def _get_user_calorie_context(tool_context: ToolContext) -> dict:
         goal_type = health_goal.get("goal_type")
 
     meal_records = tool_context.state.get("meal_records", [])
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = get_jst_now().strftime("%Y-%m-%d")
     today_calories = sum(
         r["estimated_calories"]
         for r in meal_records
@@ -128,7 +129,7 @@ def _get_user_calorie_context(tool_context: ToolContext) -> dict:
 
 def _get_meal_type_from_hour() -> str:
     """現在時刻から食事タイプを判定"""
-    hour = datetime.now().hour
+    hour = get_jst_now().hour
     if 5 <= hour < 10:
         return "breakfast"
     elif 10 <= hour < 15:

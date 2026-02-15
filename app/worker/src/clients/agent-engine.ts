@@ -13,6 +13,7 @@ import { logger } from '@/utils/logger.js';
 import {
   extractFinalTextFromStream,
   parseStructuredReply,
+  detectSenderIdFromStream,
   type StructuredAgentReply,
 } from '@/clients/agent-engine-parser.js';
 
@@ -215,7 +216,22 @@ export class AgentEngineClient {
     if (finalText.length === 0) {
       logger.warn('Agent Engine response has no text');
     }
-    return parseStructuredReply(finalText);
+    const reply = parseStructuredReply(finalText);
+
+    // senderId がテキストの JSON から取得できなかった場合、
+    // ストリームの author フィールド等からフォールバック推定する
+    if (reply.senderId === undefined) {
+      const fallbackId = detectSenderIdFromStream(responseText);
+      if (fallbackId !== undefined) {
+        reply.senderId = fallbackId;
+        logger.info(
+          { senderId: fallbackId },
+          'senderId detected from stream event fallback'
+        );
+      }
+    }
+
+    return reply;
   }
 
   // --- SSE 利用時の参考実装（未使用） ---
