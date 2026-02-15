@@ -101,4 +101,3 @@ exercise_manager_agent などサブエージェントが `finish_task` で対話
     output_schema=RootAgentOutput,
     output_key="root_agent_output",
 )
-

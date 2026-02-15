@@ -244,10 +244,10 @@ async def update_meal(
             today, tomorrow = get_today_range_jst()
             today_logs = await repo.get_by_date_range(user_id, today, tomorrow)
 
-            today_calories = sum(l.calories for l in today_logs)
-            today_proteins = sum(l.proteins for l in today_logs)
-            today_fats = sum(l.fats for l in today_logs)
-            today_carbs = sum(l.carbohydrates for l in today_logs)
+            today_calories = sum(log.calories for log in today_logs)
+            today_proteins = sum(log.proteins for log in today_logs)
+            today_fats = sum(log.fats for log in today_logs)
+            today_carbs = sum(log.carbohydrates for log in today_logs)
 
             return {
                 "status": "success",
@@ -531,10 +531,10 @@ async def record_meal(
             today, tomorrow = get_today_range_jst()
             today_logs = await repo.get_by_date_range(user_id, today, tomorrow)
 
-            today_calories = sum(l.calories for l in today_logs)
-            today_proteins = sum(l.proteins for l in today_logs)
-            today_fats = sum(l.fats for l in today_logs)
-            today_carbs = sum(l.carbohydrates for l in today_logs)
+            today_calories = sum(log.calories for log in today_logs)
+            today_proteins = sum(log.proteins for log in today_logs)
+            today_fats = sum(log.fats for log in today_logs)
+            today_carbs = sum(log.carbohydrates for log in today_logs)
 
         # 目標カロリーと残りカロリーを計算
         health_goal = tool_context.state.get("health_goal")

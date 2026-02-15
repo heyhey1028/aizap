@@ -231,7 +231,11 @@ export function detectSenderIdFromStream(
     const parts = extractParts(event);
     for (const part of parts) {
       const fc = part.function_call;
-      if (isRecord(fc) && fc.name === 'transfer_to_agent' && isRecord(fc.args)) {
+      if (
+        isRecord(fc) &&
+        fc.name === 'transfer_to_agent' &&
+        isRecord(fc.args)
+      ) {
         const args = fc.args as Record<string, unknown>;
         if (typeof args.agent_name === 'string') {
           lastAgentName = args.agent_name;
