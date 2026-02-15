@@ -220,10 +220,18 @@ export function parseStructuredReply(raw: string): StructuredAgentReply {
       'text' in parsed &&
       typeof (parsed as { text: unknown }).text === 'string'
     ) {
-      const obj = parsed as { text: string; senderId?: number };
+      // senderId（camelCase）と sender_id（snake_case）の両方に対応
+      // ADK の output_schema で Pydantic alias を設定していても、
+      // LLM が snake_case で出力する場合がある
+      const obj = parsed as {
+        text: string;
+        senderId?: number;
+        sender_id?: number;
+      };
+      const rawSenderId = obj.senderId ?? obj.sender_id;
       const senderId =
-        typeof obj.senderId === 'number' && Number.isFinite(obj.senderId)
-          ? obj.senderId
+        typeof rawSenderId === 'number' && Number.isFinite(rawSenderId)
+          ? rawSenderId
           : undefined;
       return { text: obj.text, senderId };
     }

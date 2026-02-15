@@ -215,7 +215,15 @@ export class AgentEngineClient {
     if (finalText.length === 0) {
       logger.warn('Agent Engine response has no text');
     }
-    return parseStructuredReply(finalText);
+    const reply = parseStructuredReply(finalText);
+    logger.info(
+      {
+        rawFinalText: finalText.substring(0, 500),
+        parsedSenderId: reply.senderId ?? null,
+      },
+      'Parsed Agent Engine response'
+    );
+    return reply;
   }
 
   // --- SSE 利用時の参考実装（未使用） ---
