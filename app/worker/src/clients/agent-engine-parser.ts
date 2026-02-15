@@ -201,6 +201,49 @@ export type StructuredAgentReply = {
 };
 
 /**
+ * サブエージェント名 → senderId のマッピング。
+ * schemas.py の senderId 定義と一致させる。
+ */
+const AGENT_SENDER_ID_MAP: Record<string, number> = {
+  root_agent: 1,
+  goal_setting_agent: 2,
+  exercise_manager_agent: 3,
+  meal_record_agent: 4,
+};
+
+/**
+ * streamQuery のイベント列から、最後に transfer_to_agent された
+ * サブエージェント名を検出し、対応する senderId を返す。
+ *
+ * output_schema の senderId がテキストから取得できない場合の
+ * フォールバックとして使用する。
+ *
+ * @param responseText streamQuery のレスポンス全文
+ * @returns 検出された senderId、見つからない場合は undefined
+ */
+export function detectSenderIdFromStream(
+  responseText: string
+): number | undefined {
+  const events = parseStreamEvents(responseText);
+  let lastAgentName: string | undefined;
+
+  for (const event of events) {
+    const parts = extractParts(event);
+    for (const part of parts) {
+      const fc = part.function_call;
+      if (isRecord(fc) && fc.name === 'transfer_to_agent' && isRecord(fc.args)) {
+        const args = fc.args as Record<string, unknown>;
+        if (typeof args.agent_name === 'string') {
+          lastAgentName = args.agent_name;
+        }
+      }
+    }
+  }
+
+  return lastAgentName ? AGENT_SENDER_ID_MAP[lastAgentName] : undefined;
+}
+
+/**
  * 最終応答テキストを構造化レスポンスにパースする。
  * JSON で text と senderId を持つ場合は両方を返し、それ以外は text のみとする。
  *
